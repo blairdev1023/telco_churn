@@ -85,9 +85,18 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 app.layout = html.Div([
-    html.H1('Telco Case Study', style={'textAlign': 'center'}),
+    html.Div(
+        className='app-header',
+        children=[html.Div('Telco Case Study', className='app-header--title')]
+    ),
     # EDA
-    html.H2('Exploratory Data Analysis', style={'textAlign': 'center'}),
+    html.Div(
+        className='section-header',
+        children=[
+            html.Div('Exploratory Data Analysis',
+            className='section-header--title')
+        ]
+    ),
     # Bar Plot
     dcc.Graph(
         id='feature-bar',
@@ -110,7 +119,8 @@ app.layout = html.Div([
         'width': '50%',
         'float': 'left',
         'display': 'inline-block',
-        'height': 500
+        'height': 500,
+        'backgroundColor': 'white'
     }),
     # Polar
     dcc.Graph(
@@ -124,15 +134,18 @@ app.layout = html.Div([
             'height': 500
         },
     ),
-    dcc.Textarea(
-        value='This is text, yo',
+    html.P('This is text, yo', className='text-block',
         style={
             'width': '35%',
             'float': 'left',
             'display': 'inline-block',
             'height': 500
         })
-], style={'width': '80%', 'margin-left': 'auto', 'margin-right': 'auto'})
+], style={
+    'width': '80%',
+    'margin-left': 'auto',
+    'margin-right': 'auto',
+})
 
 @app.callback(Output('feature-bar', 'figure'),
               [Input('feature-dropdown', 'value')])
@@ -148,13 +161,21 @@ def display_bar(col):
         x=churn_series.index,
         y=churn_series.values,
         name='Churn',
-        marker={'color': 'red'}
+        marker=dict(
+            color='red',
+            opacity=0.8,
+            line=dict(color='white', width=1)
+        )
     ))
     data.append(go.Bar(
         x=no_churn_series.index,
         y=no_churn_series.values,
         name='No Churn',
-        marker={'color': 'blue'}
+        marker=dict(
+            color='blue',
+            opacity=0.8,
+            line=dict(color='white', width=1)
+        )
     ))
 
     layout = go.Layout(
@@ -206,16 +227,6 @@ def display_pie(col):
         title=f'{col} Visualization'
     )
     return {'data': data, 'layout': layout}
-
-# EDA
-#
-# Currently includes:
-#     * bar plot and pie chart examiner for a single feature
-#
-# working on:
-#     * radial plot for churn vs non_churn percentages on binary data
-#     * corr matrix
-#     * groups of tenure over a single feature
 
 if __name__ == '__main__':
     app.run_server(debug=True)
