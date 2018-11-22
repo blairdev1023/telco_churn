@@ -35,6 +35,11 @@ col_label_dict = {'gender': 'Gender', 'SeniorCitizen': 'Senior Citizen',
 
 pie_cols = [{'label': col_label_dict[i], 'value': i} for i in categorical_cols]
 
+################################## Markdowns ###################################
+
+with open('assets/markdown/overview.md', 'r') as f:
+    overview = f.read()
+
 ################################# Static Plots #################################
 def churn_polar():
     '''
@@ -89,6 +94,18 @@ app.layout = html.Div([
         className='app-header',
         children=[html.Div('Telco Case Study', className='app-header--title')]
     ),
+    # Overview
+    dcc.Markdown(overview, className='markdown'),
+    html.Div(
+        className='section-header',
+        children=[html.Div('Overview', className='section-header--title')]
+    ),
+    html.Div(html.P(className='text-block', children=[]
+    , style={'padding-top': 50, 'padding-bottom': 50}
+        ), style={
+            'backgroundColor': 'white'
+        }
+    ),
     # EDA
     html.Div(
         className='section-header',
@@ -100,52 +117,41 @@ app.layout = html.Div([
     # Bar Plot
     dcc.Graph(
         id='feature-bar',
-        style={
-            'width': '50%',
-            'float': 'left',
-            'display': 'inline-block',
-            'height': 500
-        },
+        style=dict(
+            width='50%',
+            float='left',
+            display='inline-block',
+            height=500
+        ),
         config={'displayModeBar': False}),
     # Dropdown and Pie Chart
     html.Div([
-        dcc.Dropdown(
+        html.Div(dcc.Dropdown(
             id='feature-dropdown',
             options=pie_cols,
-            value='TechSupport'
-        ),
+            value='TechSupport',
+        ), style={'width': '80%', 'margin': 'auto'}),
         dcc.Graph(id='feature-pie', config={'displayModeBar': False})
-    ], style={
-        'width': '50%',
-        'float': 'left',
-        'display': 'inline-block',
-        'height': 500,
-        'backgroundColor': 'white'
-    }),
+    ], style=dict(
+        width='50%',
+        float='left',
+        display='inline-block',
+        height=500,
+        backgroundColor='white'
+    )),
     # Polar
     dcc.Graph(
         id='churn-polar',
         figure=churn_polar(),
         config={'displayModeBar': False},
-        style={
-            'width': '65%',
-            'float': 'left',
-            'display': 'inline-block',
-            'height': 500
-        },
-    ),
-    html.P('This is text, yo', className='text-block',
-        style={
-            'width': '35%',
-            'float': 'left',
-            'display': 'inline-block',
-            'height': 500
-        })
-], style={
-    'width': '80%',
-    'margin-left': 'auto',
-    'margin-right': 'auto',
-})
+        style=dict(
+            width='100%',
+            float='left',
+            display='inline-block',
+            height=600
+        )
+    )
+], style=dict(width='80%', margin='auto'))
 
 @app.callback(Output('feature-bar', 'figure'),
               [Input('feature-dropdown', 'value')])
@@ -179,7 +185,7 @@ def display_bar(col):
     ))
 
     layout = go.Layout(
-        title=f'{col} Visualization'
+        title=f'{col_label_dict[col]} by the Numbers'
     )
     return {'data': data, 'layout': layout}
 
@@ -196,35 +202,39 @@ def display_pie(col):
     n_features = len(churn_series.index)
 
     # The whole plus one minus one thing is to skip the ultra-white first color
-    colors = cl.scales[str(n_features+1)]['seq']['Greens'][1:]
+    # Also, there is no "2" version for the palette
+    reds = cl.scales[str(n_features+2)]['seq']['Reds'][2:]
+    blues = cl.scales[str(n_features+2)]['seq']['Blues'][2:]
 
-    # data, churn pie
-    data = []
-    data.append(go.Pie(
-        labels=churn_series.index,
-        values=churn_series.values,
-        hole=0.65,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        marker={
-            'line': {'color': 'white', 'width': 2},
-            'colors': colors
-        },
-        sort=False
-    ))
     # data, no churn pie
-    data.append(go.Pie(
+    data = [go.Pie(
         labels=no_churn_series.index,
         values=no_churn_series.values,
+        domain={'x': [0, 1], 'y': [0, 1]},
+        hole=0.65,
+        marker={
+            'line': {'color': 'white', 'width': 2},
+            'colors': blues
+        },
+        sort=False,
+        showlegend=False
+    ),
+    # data, churn pie
+    go.Pie(
+        labels=churn_series.index,
+        values=churn_series.values,
         domain={'x': [0.2, 0.8], 'y': [0.2, 0.8]},
         marker={
             'line': {'color': 'white', 'width': 2},
-            'colors': colors
+            'colors': reds
         },
-        sort=False
-    ))
+        sort=False,
+        showlegend=False
+    )]
+
 
     layout = go.Layout(
-        title=f'{col} Visualization'
+        title=f'{col_label_dict[col]} by Percentage'
     )
     return {'data': data, 'layout': layout}
 
