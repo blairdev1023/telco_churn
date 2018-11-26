@@ -5,7 +5,9 @@ import dash_core_components as dcc
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import pandas as pd
+import numpy as np
 import colorlover as cl
+from sklearn.neighbors import KernelDensity
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -32,8 +34,6 @@ col_label_dict = {'gender': 'Gender', 'SeniorCitizen': 'Senior Citizen',
     'TechSupport': 'Tech Support', 'StreamingTV': 'Streaming TV',
     'StreamingMovies': 'Streaming Movies', 'Contract': 'Contract',
     'PaperlessBilling': 'Paperless Billing', 'PaymentMethod': 'Payment Method'}
-
-pie_cols = [{'label': col_label_dict[i], 'value': i} for i in categorical_cols]
 
 ################################## Markdowns ###################################
 
@@ -136,7 +136,8 @@ app.layout = html.Div([
     html.Div([
         html.Div(dcc.Dropdown(
             id='feature-dropdown',
-            options=pie_cols,
+            options=[{'label': col_label_dict[i], 'value': i} for i in
+                    categorical_cols],
             value='TechSupport',
         ), style={'width': '80%', 'margin': 'auto'}),
         dcc.Graph(id='feature-pie', config={'displayModeBar': False})
@@ -164,6 +165,63 @@ app.layout = html.Div([
         className='markdown-div',
         style={'width': '25%', 'float': 'left', 'height': 600}
     ),
+    # Continuous Variables
+    # KDE
+    html.Div([
+        dcc.RadioItems(
+            id='kde-dropdown',
+            options=[{'label': i, 'value': i} for i in
+                    ['Monthly', 'Total', 'Tenure']],
+            value='Monthly',
+            labelStyle=dict(display='inline'),
+            style=dict(width='80%', margin='auto')
+        ),
+        dcc.Graph(
+            id='kde-plot',
+        )
+    ], style=dict(
+        width='50%',
+        float='left',
+        display='inline-block',
+        height=500,
+        backgroundColor='white'
+    )),
+    # Mean Binned
+    html.Div([
+        dcc.RadioItems(
+            id='charge-dropdown-feature',
+            options=[{'label': i, 'value': i} for i in ['Monthly', 'Total']],
+            value='Monthly',
+            labelStyle=dict(display='inline'),
+            style=dict(
+                width='50%',
+                # margin='auto',
+                textAlign='center',
+                display='inline-block'
+            )
+        ),
+        dcc.RadioItems(
+            id='charge-dropdown-display',
+            options=[{'label': i, 'value': i} for i in ['Raw', 'Difference']],
+            value='Raw',
+            labelStyle=dict(display='inline'),
+            style=dict(
+                width='50%',
+                # margin='auto',
+                textAlign='center',
+                display='inline-block'
+            )
+        ),
+        dcc.Graph(
+            id='charge-plot',
+        )
+    ], style=dict(
+        width='50%',
+        float='left',
+        display='inline-block',
+        height=500,
+        backgroundColor='white'
+    )),
 ], style=dict(width='80%', margin='auto'))
 
 @app.callback(Output('feature-bar', 'figure'),
@@ -257,6 +315,50 @@ def display_pie(col):
             )
         )
     )
+    return {'data': data, 'layout': layout}
+
+@app.callback(
+    Output('kde-plot', 'figure'),
+    [Input('kde-dropdown', 'value')])
+def kde_plotter(feature):
+    '''
+    Returns a plotly figure of a kde plot for the selected feature
+    '''
+
+    if feature.lower() == 'tenure':
+        col = 'tenure'
+    else:
+        col = feature + 'Charges'
+    x_churn = df_churn[col][:, np.newaxis]
+    x_no_churn = df_no_churn[col][:, np.newaxis]
+
+    # Set x limit of plot to 20% feature max
+    x_lim = df[col].max()
+    x_lim *= 1.2
+    X_plot = np.linspace(0, x_lim, 1000)[:, np.newaxis]
+
+    # Make Gaussian and Trace for both churn and non churn
+    data = []
+    for i in range(2):
+        x = [x_churn, x_no_churn][i]
+        color = ['red', 'blue'][i]
+        name = ['Churn', 'No Churn'][i]
+
+        kde = KernelDensity(kernel='gaussian', bandwidth=5).fit(x)
+        log_dens = kde.score_samples(X_plot)
+        data.append(go.Scatter(
+            x=X_plot[:, 0],
+            y=np.exp(log_dens),
+            mode='lines',
+            fill='tozeroy',
+            name=name,
+            line=dict(color=color, width=2)
+        ))
+
+    layout = go.Layout(
+        title='This is a title'
+    )
+
     return {'data': data, 'layout': layout}
 
 if __name__ == '__main__':
