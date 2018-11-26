@@ -39,6 +39,9 @@ pie_cols = [{'label': col_label_dict[i], 'value': i} for i in categorical_cols]
 
 with open('assets/markdown/overview.md', 'r') as f:
     overview = f.read()
+with open('assets/markdown/eda.md', 'r') as f:
+    eda = f.read()
+
 
 ################################# Static Plots #################################
 def churn_polar():
@@ -73,9 +76,13 @@ def churn_polar():
 
     layout = go.Layout(
         polar=dict(
+            domain=dict(
+                x=[0, 1],
+                y=[0, 1]
+            ),
             radialaxis=dict(
                 visible=True,
-                showgrid=False,
+                # showgrid=False,
             )
         ),
         showlegend=False
@@ -95,24 +102,25 @@ app.layout = html.Div([
         children=[html.Div('Telco Case Study', className='app-header--title')]
     ),
     # Overview
-    dcc.Markdown(overview, className='markdown'),
     html.Div(
         className='section-header',
         children=[html.Div('Overview', className='section-header--title')]
     ),
-    html.Div(html.P(className='text-block', children=[]
-    , style={'padding-top': 50, 'padding-bottom': 50}
-        ), style={
-            'backgroundColor': 'white'
-        }
+    html.Div(
+        dcc.Markdown(overview, className='markdown-text'),
+        className='markdown-div',
     ),
     # EDA
     html.Div(
         className='section-header',
         children=[
-            html.Div('Exploratory Data Analysis',
+            html.Div('Who Churns? Exploratory Data Analysis',
             className='section-header--title')
         ]
+    ),
+    html.Div(
+        dcc.Markdown(eda, className='markdown-text'),
+        className='markdown-div',
     ),
     # Bar Plot
     dcc.Graph(
@@ -145,12 +153,17 @@ app.layout = html.Div([
         figure=churn_polar(),
         config={'displayModeBar': False},
         style=dict(
-            width='100%',
+            width='75%',
             float='left',
             display='inline-block',
             height=600
         )
-    )
+    ),
+    html.Div(
+        dcc.Markdown('LOL', className='markdown-text'),
+        className='markdown-div',
+        style={'width': '25%', 'float': 'left', 'height': 600}
+    ),
 ], style=dict(width='80%', margin='auto'))
 
 @app.callback(Output('feature-bar', 'figure'),
@@ -207,7 +220,8 @@ def display_pie(col):
     blues = cl.scales[str(n_features+2)]['seq']['Blues'][2:]
 
     # data, no churn pie
-    data = [go.Pie(
+    data = [
+    go.Pie(
         labels=no_churn_series.index,
         values=no_churn_series.values,
         domain={'x': [0, 1], 'y': [0, 1]},
@@ -234,7 +248,14 @@ def display_pie(col):
 
 
     layout = go.Layout(
-        title=f'{col_label_dict[col]} by Percentage'
+        title=f'{col_label_dict[col]} by Percentage',
+        legend=dict(
+            y=0.5,
+            traceorder='reversed',
+            font=dict(
+                size=16
+            )
+        )
     )
     return {'data': data, 'layout': layout}
 
