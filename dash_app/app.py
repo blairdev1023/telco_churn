@@ -82,7 +82,6 @@ def churn_polar():
             ),
             radialaxis=dict(
                 visible=True,
-                # showgrid=False,
             )
         ),
         showlegend=False
@@ -124,7 +123,7 @@ app.layout = html.Div([
     ),
     # Bar Plot
     dcc.Graph(
-        id='feature-bar',
+        id='categorical-bar',
         style=dict(
             width='50%',
             float='left',
@@ -135,12 +134,12 @@ app.layout = html.Div([
     # Dropdown and Pie Chart
     html.Div([
         html.Div(dcc.Dropdown(
-            id='feature-dropdown',
+            id='categorical-dropdown',
             options=[{'label': col_label_dict[i], 'value': i} for i in
                     categorical_cols],
             value='TechSupport',
         ), style={'width': '80%', 'margin': 'auto'}),
-        dcc.Graph(id='feature-pie', config={'displayModeBar': False})
+        dcc.Graph(id='categorical-pie', config={'displayModeBar': False})
     ], style=dict(
         width='50%',
         float='left',
@@ -161,7 +160,7 @@ app.layout = html.Div([
         )
     ),
     html.Div(
-        dcc.Markdown('LOL', className='markdown-text'),
+        dcc.Markdown('I might put something here', className='markdown-text'),
         className='markdown-div',
         style={'width': '25%', 'float': 'left', 'height': 600}
     ),
@@ -223,23 +222,34 @@ app.layout = html.Div([
     # Mean Binned
     html.Div([
         dcc.RadioItems(
-            id='charge-dropdown-feature',
+            id='charge-radio-feature',
             options=[{'label': i, 'value': i} for i in ['Monthly', 'Total']],
             value='Monthly',
             labelStyle=dict(display='inline'),
             style=dict(
-                width='50%',
+                width='33%',
                 textAlign='center',
                 display='inline-block'
             )
         ),
         dcc.RadioItems(
-            id='charge-dropdown-display',
+            id='charge-radio-display',
             options=[{'label': i, 'value': i} for i in ['Raw', 'Difference']],
             value='Raw',
             labelStyle=dict(display='inline'),
             style=dict(
-                width='50%',
+                width='33%',
+                textAlign='center',
+                display='inline-block'
+            )
+        ),
+        dcc.RadioItems(
+            id='charge-radio-bars',
+            options=[{'label': i, 'value': i} for i in range(4,7)],
+            value=5,
+            labelStyle=dict(display='inline'),
+            style=dict(
+                width='33%',
                 textAlign='center',
                 display='inline-block'
             )
@@ -256,8 +266,8 @@ app.layout = html.Div([
     )),
 ], style=dict(width='80%', margin='auto'))
 
-@app.callback(Output('feature-bar', 'figure'),
-              [Input('feature-dropdown', 'value')])
+@app.callback(Output('categorical-bar', 'figure'),
+              [Input('categorical-dropdown', 'value')])
 def display_bar(col):
     '''
     Makes the figure for the bar plot in the EDA
@@ -292,8 +302,8 @@ def display_bar(col):
     )
     return {'data': data, 'layout': layout}
 
-@app.callback(Output('feature-pie', 'figure'),
-              [Input('feature-dropdown', 'value')])
+@app.callback(Output('categorical-pie', 'figure'),
+              [Input('categorical-dropdown', 'value')])
 def display_pie(col):
     '''
     Makes the figure for the pie plot in the EDA
@@ -403,7 +413,6 @@ def continuous_var_plotter(feature, chart, domain):
         # Histogram Trace
         elif chart == 'Histogram':
             x = x.copy()
-            x.sort_values(inplace=True)
             x = x[x >= x_lower]
             x = x[x <= x_upper]
             data.append(go.Histogram(
@@ -422,6 +431,52 @@ def continuous_var_plotter(feature, chart, domain):
         xaxis=xaxis,
         legend=dict(x=.8, y=1),
         barmode='overlay'
+    )
+
+    return {'data': data, 'layout': layout}
+
+@app.callback(
+    Output('charge-plot', 'figure'),
+    [Input('charge-radio-feature', 'value'),
+    Input('charge-radio-display', 'value'),
+    Input('charge-radio-bars', 'value')
+    ])
+def charge_over_tenure(feature, chart, bars):
+    '''
+    Returns either the Monthly Charges or Totals Charges over Tenure as a
+    Plotly Bar figure
+    '''
+    bins = [range(0, 81, 20), range(0, 76, 15), range(0, 73, 12)][bars-4]
+
+    gb_churn = df_churn.groupby(pd.cut(df_churn['tenure'], bins))
+    gb_no_churn = df_no_churn.groupby(pd.cut(df_no_churn['tenure'], bins))
+
+    # Make Trace for both churn and non churn
+    data = []
+    for i in range(2):
+        df_agg = [df_churn, df_no_churn][i]
+        color = ['red', 'blue'][i]
+        name = ['Churn', 'No Churn'][i]
+
+        gb = df_agg.groupby(pd.cut(df_agg['tenure'], bins))
+        means = gb[feature+'Charges'].mean()
+
+        # BLAIR!!! UPDATE THIS LATER
+        x_temp = list(range(len(means)))
+
+        data.append(go.Bar(
+            x=x_temp,
+            y=means.values,
+            name=name,
+            marker=dict(
+                color=color,
+                opacity=0.8,
+                line=dict(color='white', width=1)
+            )
+        ))
+
+    layout = go.Layout(
+        title=f'Average {feature} Charges over Tenure'
     )
 
     return {'data': data, 'layout': layout}
