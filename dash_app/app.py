@@ -166,18 +166,52 @@ app.layout = html.Div([
         style={'width': '25%', 'float': 'left', 'height': 600}
     ),
     # Continuous Variables
-    # KDE
+    # Distribution
     html.Div([
         dcc.RadioItems(
-            id='kde-dropdown',
+            id='continuous-var',
             options=[{'label': i, 'value': i} for i in
                     ['Monthly', 'Total', 'Tenure']],
             value='Monthly',
             labelStyle=dict(display='inline'),
-            style=dict(width='80%', margin='auto')
+            style=dict(
+                width='50%',
+                textAlign='center',
+                display='inline-block'
+            )
+        ),
+        dcc.RadioItems(
+            id='continuous-chart',
+            options=[{'label': i, 'value': i} for i in
+                    ['KDE', 'Histogram']],
+            value='KDE',
+            labelStyle=dict(display='inline'),
+            style=dict(
+                width='50%',
+                textAlign='center',
+                display='inline-block'
+            )
         ),
         dcc.Graph(
-            id='kde-plot',
+            id='continuous-plot',
+            style=dict(height=400)
+        ),
+        dcc.RangeSlider(
+            id='continuous-slider',
+            min=0,
+            max=100,
+            step=1,
+            value=[0, 100],
+            marks={
+                0: '0',
+                5: '1/20',
+                25: '1/4',
+                50: '1/2',
+                75: '3/4',
+                100: '1'
+            },
+            pushable=5,
+            className='dcc-single'
         )
     ], style=dict(
         width='50%',
@@ -195,7 +229,6 @@ app.layout = html.Div([
             labelStyle=dict(display='inline'),
             style=dict(
                 width='50%',
-                # margin='auto',
                 textAlign='center',
                 display='inline-block'
             )
@@ -207,7 +240,6 @@ app.layout = html.Div([
             labelStyle=dict(display='inline'),
             style=dict(
                 width='50%',
-                # margin='auto',
                 textAlign='center',
                 display='inline-block'
             )
@@ -318,45 +350,78 @@ def display_pie(col):
     return {'data': data, 'layout': layout}
 
 @app.callback(
-    Output('kde-plot', 'figure'),
-    [Input('kde-dropdown', 'value')])
-def kde_plotter(feature):
+    Output('continuous-plot', 'figure'),
+    [Input('continuous-var', 'value'),
+    Input('continuous-chart', 'value'),
+    Input('continuous-slider', 'value')])
+def continuous_var_plotter(feature, chart, domain):
     '''
-    Returns a plotly figure of a kde plot for the selected feature
+    Returns a plotly figure of either a kde plot or bar plot of the selected
+    continuous variable
     '''
 
     if feature.lower() == 'tenure':
         col = 'tenure'
+        title = 'Tenure KDE Plot'
+        xaxis = {'title': 'Months'}
     else:
         col = feature + 'Charges'
-    x_churn = df_churn[col][:, np.newaxis]
-    x_no_churn = df_no_churn[col][:, np.newaxis]
+        title = feature + ' Charges KDE Plot'
+        xaxis = {'title': 'Charges ($)'}
 
-    # Set x limit of plot to 20% feature max
-    x_lim = df[col].max()
-    x_lim *= 1.2
-    X_plot = np.linspace(0, x_lim, 1000)[:, np.newaxis]
+    x_churn = df_churn[col]
+    x_no_churn = df_no_churn[col]
 
-    # Make Gaussian and Trace for both churn and non churn
+    # Set plot domains
+    feature_max = df[col].max()
+    lower_frac = domain[0] / 100
+    upper_frac = domain[1] / 100
+    x_lower = feature_max * lower_frac
+    x_upper = feature_max * upper_frac
+
+    # Make Trace for both churn and non churn
     data = []
     for i in range(2):
         x = [x_churn, x_no_churn][i]
         color = ['red', 'blue'][i]
         name = ['Churn', 'No Churn'][i]
 
-        kde = KernelDensity(kernel='gaussian', bandwidth=5).fit(x)
-        log_dens = kde.score_samples(X_plot)
-        data.append(go.Scatter(
-            x=X_plot[:, 0],
-            y=np.exp(log_dens),
-            mode='lines',
-            fill='tozeroy',
-            name=name,
-            line=dict(color=color, width=2)
-        ))
+        # KDE Trace
+        if chart == 'KDE':
+            X_plot = np.linspace(x_lower, x_upper * 1.2, 1000)
+            kde = KernelDensity(kernel='gaussian', bandwidth=5)
+            kde = kde.fit(x[:, np.newaxis])
+            log_dens = kde.score_samples(X_plot[:, np.newaxis])
+            data.append(go.Scatter(
+                x=X_plot,
+                y=np.exp(log_dens),
+                mode='lines',
+                fill='tozeroy',
+                name=name,
+                line=dict(color=color, width=2)
+            ))
+        # Histogram Trace
+        elif chart == 'Histogram':
+            x = x.copy()
+            x.sort_values(inplace=True)
+            x = x[x >= x_lower]
+            x = x[x <= x_upper]
+            data.append(go.Histogram(
+                x=x,
+                name=name,
+                marker=dict(
+                    color=color,
+                    opacity=0.7,
+                    line=dict(color='white', width=1)
+                )
+            ))
 
+    # Layout
     layout = go.Layout(
-        title='This is a title'
+        title=title,
+        xaxis=xaxis,
+        legend=dict(x=.8, y=1),
+        barmode='overlay'
     )
 
     return {'data': data, 'layout': layout}
