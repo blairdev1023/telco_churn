@@ -75,6 +75,7 @@ def churn_polar():
     ]
 
     layout = go.Layout(
+        height=800,
         polar=dict(
             domain=dict(
                 x=[0, 1],
@@ -153,20 +154,27 @@ app.layout = html.Div([
         figure=churn_polar(),
         config={'displayModeBar': False},
         style=dict(
-            width='75%',
+            width='100%',
             float='left',
             display='inline-block',
-            height=600
+            # height=700
         )
     ),
-    html.Div(
-        dcc.Markdown('I might put something here', className='markdown-text'),
-        className='markdown-div',
-        style={'width': '25%', 'float': 'left', 'height': 600}
-    ),
+    # Getting rid of this for now, want to make the full thing a radar
+    # Might bring it back later, dunno! Probably tossing it.
+    # html.Div(
+    #     dcc.Markdown('I might put something here', className='markdown-text'),
+    #     className='markdown-div',
+    #     style=dict(
+    #         width='25%',
+    #         float='left',
+    #         height=540 # This adds to 600 with the padding in the className
+    #     )
+    # ),
     # Continuous Variables
     # Distribution
     html.Div([
+        html.Div([
         dcc.RadioItems(
             id='continuous-var',
             options=[{'label': i, 'value': i} for i in
@@ -186,32 +194,27 @@ app.layout = html.Div([
             value='KDE',
             labelStyle=dict(display='inline'),
             style=dict(
-                width='50%',
+                width='25%',
                 textAlign='center',
                 display='inline-block'
             )
         ),
+        dcc.Checklist(
+            id='continuous-view',
+            options=[{'label': '1/20th View', 'value': 1}],
+            values=[],
+            labelStyle=dict(display='inline'),
+            style=dict(
+                width='25%',
+                textAlign='center',
+                display='inline-block'
+            )
+        )], className='dashboard-div'),
         dcc.Graph(
             id='continuous-plot',
-            style=dict(height=400)
+            style=dict(height=400),
+            config={'displayModeBar': False}
         ),
-        dcc.RangeSlider(
-            id='continuous-slider',
-            min=0,
-            max=100,
-            step=1,
-            value=[0, 100],
-            marks={
-                0: '0',
-                5: '1/20',
-                25: '1/4',
-                50: '1/2',
-                75: '3/4',
-                100: '1'
-            },
-            pushable=5,
-            className='dcc-single'
-        )
     ], style=dict(
         width='50%',
         float='left',
@@ -219,43 +222,62 @@ app.layout = html.Div([
         height=500,
         backgroundColor='white'
     )),
-    # Mean Binned
+    # Charges over Tenure
     html.Div([
+        # Toggles and radios
+        html.Div([
         dcc.RadioItems(
             id='charge-radio-feature',
             options=[{'label': i, 'value': i} for i in ['Monthly', 'Total']],
             value='Monthly',
             labelStyle=dict(display='inline'),
             style=dict(
-                width='33%',
-                textAlign='center',
-                display='inline-block'
-            )
-        ),
-        dcc.RadioItems(
-            id='charge-radio-display',
-            options=[{'label': i, 'value': i} for i in ['Raw', 'Difference']],
-            value='Raw',
-            labelStyle=dict(display='inline'),
-            style=dict(
-                width='33%',
+                width='24%',
                 textAlign='center',
                 display='inline-block'
             )
         ),
         dcc.RadioItems(
             id='charge-radio-bars',
-            options=[{'label': i, 'value': i} for i in range(4,7)],
+            options=[{'label': i, 'value': i} for i in range(3,8)],
             value=5,
             labelStyle=dict(display='inline'),
             style=dict(
-                width='33%',
+                width='25%',
                 textAlign='center',
-                display='inline-block'
+                display='inline-block',
+                borderLeft='thin rgb(42, 207, 255) solid'
             )
         ),
+        dcc.Checklist(
+            id='charge-check-difference',
+            options=[{'label': 'Toggle Difference', 'value': 1}],
+            values=[],
+            labelStyle=dict(display='inline'),
+            style=dict(
+                width='25%',
+                textAlign='center',
+                display='inline-block',
+                borderLeft='thin rgb(42, 207, 255) solid'
+            )
+        ),
+        dcc.Checklist(
+            id='charge-check-stdev',
+            options=[{'label': 'Show 1 Std. Dev.', 'value': 1}],
+            values=[],
+            labelStyle=dict(display='inline'),
+            style=dict(
+                width='25%',
+                textAlign='center',
+                display='inline-block',
+                borderLeft='thin rgb(42, 207, 255) solid'
+            )
+        )],
+        className='dashboard-div',
+        style=dict(borderLeft='rgb(42, 207, 255) solid')),
         dcc.Graph(
             id='charge-plot',
+            config={'displayModeBar': False}
         )
     ], style=dict(
         width='50%',
@@ -282,7 +304,7 @@ def display_bar(col):
         name='Churn',
         marker=dict(
             color='red',
-            opacity=0.8,
+            opacity=0.7,
             line=dict(color='white', width=1)
         )
     ))
@@ -292,7 +314,7 @@ def display_bar(col):
         name='No Churn',
         marker=dict(
             color='blue',
-            opacity=0.8,
+            opacity=0.7,
             line=dict(color='white', width=1)
         )
     ))
@@ -326,10 +348,10 @@ def display_pie(col):
         values=no_churn_series.values,
         domain={'x': [0, 1], 'y': [0, 1]},
         hole=0.65,
-        marker={
-            'line': {'color': 'white', 'width': 2},
-            'colors': blues
-        },
+        marker=dict(
+            line={'color': 'white', 'width': 2},
+            colors=blues,
+        ),
         sort=False,
         showlegend=False
     ),
@@ -338,10 +360,10 @@ def display_pie(col):
         labels=churn_series.index,
         values=churn_series.values,
         domain={'x': [0.2, 0.8], 'y': [0.2, 0.8]},
-        marker={
-            'line': {'color': 'white', 'width': 2},
-            'colors': reds
-        },
+        marker=dict(
+            line={'color': 'white', 'width': 2},
+            colors=reds,
+        ),
         sort=False,
         showlegend=False
     )]
@@ -363,8 +385,8 @@ def display_pie(col):
     Output('continuous-plot', 'figure'),
     [Input('continuous-var', 'value'),
     Input('continuous-chart', 'value'),
-    Input('continuous-slider', 'value')])
-def continuous_var_plotter(feature, chart, domain):
+    Input('continuous-view', 'values')])
+def continuous_var_plotter(feature, chart, view):
     '''
     Returns a plotly figure of either a kde plot or bar plot of the selected
     continuous variable
@@ -384,10 +406,10 @@ def continuous_var_plotter(feature, chart, domain):
 
     # Set plot domains
     feature_max = df[col].max()
-    lower_frac = domain[0] / 100
-    upper_frac = domain[1] / 100
-    x_lower = feature_max * lower_frac
-    x_upper = feature_max * upper_frac
+    if view:
+        x_upper = feature_max * 1/20
+    else:
+        x_upper = feature_max
 
     # Make Trace for both churn and non churn
     data = []
@@ -398,7 +420,7 @@ def continuous_var_plotter(feature, chart, domain):
 
         # KDE Trace
         if chart == 'KDE':
-            X_plot = np.linspace(x_lower, x_upper * 1.2, 1000)
+            X_plot = np.linspace(0, x_upper * 1.2, 1000)
             kde = KernelDensity(kernel='gaussian', bandwidth=5)
             kde = kde.fit(x[:, np.newaxis])
             log_dens = kde.score_samples(X_plot[:, np.newaxis])
@@ -413,7 +435,6 @@ def continuous_var_plotter(feature, chart, domain):
         # Histogram Trace
         elif chart == 'Histogram':
             x = x.copy()
-            x = x[x >= x_lower]
             x = x[x <= x_upper]
             data.append(go.Histogram(
                 x=x,
@@ -438,18 +459,33 @@ def continuous_var_plotter(feature, chart, domain):
 @app.callback(
     Output('charge-plot', 'figure'),
     [Input('charge-radio-feature', 'value'),
-    Input('charge-radio-display', 'value'),
-    Input('charge-radio-bars', 'value')
+    Input('charge-radio-bars', 'value'),
+    Input('charge-check-difference', 'values'),
+    Input('charge-check-stdev', 'values')
     ])
-def charge_over_tenure(feature, chart, bars):
+def charge_over_tenure(feature, bars, difference, show_stdev):
     '''
     Returns either the Monthly Charges or Totals Charges over Tenure as a
     Plotly Bar figure
     '''
-    bins = [range(0, 81, 20), range(0, 76, 15), range(0, 73, 12)][bars-4]
+    bin_ranges = [range(0, 76, 25), range(0, 81, 20), range(0, 76, 15),
+                 range(0, 73, 12), range(0, 78, 11)]
+    bins = bin_ranges[bars-3]
+
+    bin_size = [25, 20, 15, 12, 11][bars-3]
+
+    x_labels = []
+    for i in range(bars-1):
+        x_labels.append(f'{i*bin_size}-{(i+1)*bin_size}')
+    x_labels.append(f'> {(bars-1)*bin_size}')
 
     gb_churn = df_churn.groupby(pd.cut(df_churn['tenure'], bins))
     gb_no_churn = df_no_churn.groupby(pd.cut(df_no_churn['tenure'], bins))
+
+    if show_stdev:
+        show_stdev = True
+    else:
+        show_stdev = False
 
     # Make Trace for both churn and non churn
     data = []
@@ -460,23 +496,32 @@ def charge_over_tenure(feature, chart, bars):
 
         gb = df_agg.groupby(pd.cut(df_agg['tenure'], bins))
         means = gb[feature+'Charges'].mean()
+        st_devs = gb[feature+'Charges'].std()
 
-        # BLAIR!!! UPDATE THIS LATER
-        x_temp = list(range(len(means)))
+        text = means.round(2).apply(lambda x: '$' + str(x))
 
         data.append(go.Bar(
-            x=x_temp,
+            x=x_labels,
             y=means.values,
+            text=text,
+            hoverinfo='text',
             name=name,
             marker=dict(
                 color=color,
-                opacity=0.8,
+                opacity=0.7,
                 line=dict(color='white', width=1)
+            ),
+            error_y=dict(
+                type='data',
+                array=st_devs.values,
+                visible=show_stdev
             )
         ))
 
     layout = go.Layout(
-        title=f'Average {feature} Charges over Tenure'
+        title=f'Average {feature} Charges over Tenure',
+        xaxis=dict(title='Months'),
+        yaxis=dict(title='Charges ($)')
     )
 
     return {'data': data, 'layout': layout}
