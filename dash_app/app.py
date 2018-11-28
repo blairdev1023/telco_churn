@@ -182,7 +182,7 @@ app.layout = html.Div([
             value='Monthly',
             labelStyle=dict(display='inline'),
             style=dict(
-                width='50%',
+                width='44%',
                 textAlign='center',
                 display='inline-block'
             )
@@ -194,9 +194,10 @@ app.layout = html.Div([
             value='KDE',
             labelStyle=dict(display='inline'),
             style=dict(
-                width='25%',
+                width='30%',
                 textAlign='center',
-                display='inline-block'
+                display='inline-block',
+                borderLeft='thin rgb(42, 207, 255) solid'
             )
         ),
         dcc.Checklist(
@@ -207,7 +208,8 @@ app.layout = html.Div([
             style=dict(
                 width='25%',
                 textAlign='center',
-                display='inline-block'
+                display='inline-block',
+                borderLeft='thin rgb(42, 207, 255) solid'
             )
         )], className='dashboard-div'),
         dcc.Graph(
@@ -251,7 +253,7 @@ app.layout = html.Div([
         ),
         dcc.Checklist(
             id='charge-check-difference',
-            options=[{'label': 'Toggle Difference', 'value': 1}],
+            options=[{'label': 'Difference', 'value': 1}],
             values=[],
             labelStyle=dict(display='inline'),
             style=dict(
@@ -263,7 +265,7 @@ app.layout = html.Div([
         ),
         dcc.Checklist(
             id='charge-check-stdev',
-            options=[{'label': 'Show 1 Std. Dev.', 'value': 1}],
+            options=[{'label': '1 Std. Dev.', 'value': 1}],
             values=[],
             labelStyle=dict(display='inline'),
             style=dict(
@@ -394,11 +396,11 @@ def continuous_var_plotter(feature, chart, view):
 
     if feature.lower() == 'tenure':
         col = 'tenure'
-        title = 'Tenure KDE Plot'
+        title = 'Tenure'
         xaxis = {'title': 'Months'}
     else:
         col = feature + 'Charges'
-        title = feature + ' Charges KDE Plot'
+        feature += ' Charges'
         xaxis = {'title': 'Charges ($)'}
 
     x_churn = df_churn[col]
@@ -417,16 +419,20 @@ def continuous_var_plotter(feature, chart, view):
         x = [x_churn, x_no_churn][i]
         color = ['red', 'blue'][i]
         name = ['Churn', 'No Churn'][i]
+        kde_frac = len(x)/len(df) # for scaling each normalied kde
 
         # KDE Trace
         if chart == 'KDE':
+            title = feature + ' KDE Plot (Overlaid)'
             X_plot = np.linspace(0, x_upper * 1.2, 1000)
             kde = KernelDensity(kernel='gaussian', bandwidth=5)
             kde = kde.fit(x[:, np.newaxis])
             log_dens = kde.score_samples(X_plot[:, np.newaxis])
+            kde_pts = np.exp(log_dens)
+            y = kde_pts * kde_frac
             data.append(go.Scatter(
                 x=X_plot,
-                y=np.exp(log_dens),
+                y=y,
                 mode='lines',
                 fill='tozeroy',
                 name=name,
@@ -434,6 +440,7 @@ def continuous_var_plotter(feature, chart, view):
             ))
         # Histogram Trace
         elif chart == 'Histogram':
+            title = feature + ' Histogram (Stacked)'
             x = x.copy()
             x = x[x <= x_upper]
             data.append(go.Histogram(
@@ -451,7 +458,7 @@ def continuous_var_plotter(feature, chart, view):
         title=title,
         xaxis=xaxis,
         legend=dict(x=.8, y=1, bgcolor='rgba(0,0,0,0)'),
-        barmode='overlay'
+        barmode='stack'
     )
 
     return {'data': data, 'layout': layout}
@@ -500,7 +507,7 @@ def charge_over_tenure(feature, bars, difference, show_stdev):
         st_devs = np.sqrt(sqr_churn + sqr_no_churn)
 
         trace = charge_bar_tracer(means, st_devs, labels,
-                'Churn - No Churn', 'mediumpurple', show_stdev)
+                'Churn - No Churn', 'khaki', show_stdev)
         data = [trace]
     else:
         trace_churn = trace = charge_bar_tracer(means_churn,
@@ -534,10 +541,11 @@ def charge_bar_tracer(means, st_devs, labels, name, color, show_stdev):
         x=labels,
         y=means.round(2).values,
         name=name,
+        width=.4,
         marker=dict(
             color=color,
             opacity=0.7,
-            line=dict(color='white', width=1)
+            line=dict(color='dark'+color, width=1)
         ),
         error_y=dict(
             type='data',
