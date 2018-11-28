@@ -450,7 +450,7 @@ def continuous_var_plotter(feature, chart, view):
     layout = go.Layout(
         title=title,
         xaxis=xaxis,
-        legend=dict(x=.8, y=1),
+        legend=dict(x=.8, y=1, bgcolor='rgba(0,0,0,0)'),
         barmode='overlay'
     )
 
@@ -474,57 +474,78 @@ def charge_over_tenure(feature, bars, difference, show_stdev):
 
     bin_size = [25, 20, 15, 12, 11][bars-3]
 
-    x_labels = []
-    for i in range(bars-1):
-        x_labels.append(f'{i*bin_size}-{(i+1)*bin_size}')
-    x_labels.append(f'> {(bars-1)*bin_size}')
-
-    gb_churn = df_churn.groupby(pd.cut(df_churn['tenure'], bins))
-    gb_no_churn = df_no_churn.groupby(pd.cut(df_no_churn['tenure'], bins))
+    labels = [f'{i*bin_size}-{(i+1)*bin_size}' for i in range(bars-1)]
+    labels.append(f'> {(bars-1)*bin_size}')
 
     if show_stdev:
         show_stdev = True
     else:
         show_stdev = False
 
-    # Make Trace for both churn and non churn
-    data = []
-    for i in range(2):
-        df_agg = [df_churn, df_no_churn][i]
-        color = ['red', 'blue'][i]
-        name = ['Churn', 'No Churn'][i]
+    # Groubpy using cut
+    gb_churn = df_churn.groupby(pd.cut(df_churn['tenure'], bins))
+    gb_no_churn = df_no_churn.groupby(pd.cut(df_no_churn['tenure'], bins))
+    # Means
+    means_churn = gb_churn[feature+'Charges'].mean()
+    means_no_churn = gb_no_churn[feature+'Charges'].mean()
+    # Standard Devs.
+    st_devs_churn = gb_churn[feature+'Charges'].std()
+    st_devs_no_churn = gb_no_churn[feature+'Charges'].std()
 
-        gb = df_agg.groupby(pd.cut(df_agg['tenure'], bins))
-        means = gb[feature+'Charges'].mean()
-        st_devs = gb[feature+'Charges'].std()
+    if difference:
+        means = means_churn - means_no_churn
+        # Error Prop. -  squareroot of the sum of the squares
+        sqr_churn = np.square(st_devs_churn) / bars
+        sqr_no_churn = np.square(st_devs_no_churn) / bars
+        st_devs = np.sqrt(sqr_churn + sqr_no_churn)
 
-        text = means.round(2).apply(lambda x: '$' + str(x))
+        trace = charge_bar_tracer(means, st_devs, labels,
+                'Churn - No Churn', 'mediumpurple', show_stdev)
+        data = [trace]
+    else:
+        trace_churn = trace = charge_bar_tracer(means_churn,
+                st_devs_churn, labels, 'Churn', 'red', show_stdev)
+        trace_no_churn = trace = charge_bar_tracer(means_no_churn,
+                st_devs_no_churn, labels, 'No Churn', 'blue', show_stdev)
+        data = [trace_churn, trace_no_churn]
 
-        data.append(go.Bar(
-            x=x_labels,
-            y=means.values,
-            text=text,
-            hoverinfo='text',
-            name=name,
-            marker=dict(
-                color=color,
-                opacity=0.7,
-                line=dict(color='white', width=1)
-            ),
-            error_y=dict(
-                type='data',
-                array=st_devs.values,
-                visible=show_stdev
-            )
-        ))
+    if feature == 'Monthly':
+        y_lim = 125
+    elif feature == 'Total':
+        y_lim = 9000
 
     layout = go.Layout(
         title=f'Average {feature} Charges over Tenure',
         xaxis=dict(title='Months'),
-        yaxis=dict(title='Charges ($)')
+        yaxis=dict(title='Charges ($)', range=[0, y_lim]),
+        showlegend=True,
+        legend=dict(x=.8, y=1, bgcolor='rgba(0,0,0,0)')
     )
 
     return {'data': data, 'layout': layout}
+
+def charge_bar_tracer(means, st_devs, labels, name, color, show_stdev):
+    '''
+    Helper function for charge_over_tenure
+
+    Returns the plotly bar trace
+    '''
+    return go.Bar(
+        x=labels,
+        y=means.round(2).values,
+        name=name,
+        marker=dict(
+            color=color,
+            opacity=0.7,
+            line=dict(color='white', width=1)
+        ),
+        error_y=dict(
+            type='data',
+            array=st_devs.round(2).values,
+            visible=show_stdev
+        ),
+    )
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
