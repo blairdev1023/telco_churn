@@ -1,5 +1,5 @@
 /* Body */
-body { margin: 0; background-color: rgba(100, 100, 100, 0.5)}
+body { margin: 0; background-color: rgba(100, 100, 100, 0.4)}
 
 /* App Header */
 .app-header {
@@ -42,8 +42,8 @@ body { margin: 0; background-color: rgba(100, 100, 100, 0.5)}
 .markdown-div {
   background-color: white;
   text-align: center;
-  padding-top: 30;
-  padding-bottom: 30;
+  padding-top: 30px;
+  padding-bottom: 30px;
 }
 
 .markdown-text {
@@ -57,4 +57,12 @@ body { margin: 0; background-color: rgba(100, 100, 100, 0.5)}
 .dcc-single {
   width: 70%;
   margin: auto;
+}
+
+/* DDC Dashboard  */
+.dashboard-div {
+  border-top: rgb(42, 207, 255) solid;
+  border-bottom: rgb(42, 207, 255) solid;
+  background-color: rgba(100, 100, 100, 0.2);,
+  height: 50;
 }
