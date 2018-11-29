@@ -41,7 +41,8 @@ with open('assets/markdown/overview.md', 'r') as f:
     overview = f.read()
 with open('assets/markdown/eda.md', 'r') as f:
     eda = f.read()
-
+with open('assets/markdown/descriptions.md', 'r') as f:
+    descriptions = f.read()
 
 ################################# Static Plots #################################
 def churn_polar():
@@ -49,28 +50,45 @@ def churn_polar():
     Returns the plotly figure for the churn polar chart. Since this chart is
     static I don't need to wrap it with a callback
     '''
-
+    # Seperate churn from non-churn and compute means for features
     churn_idxs = df_churn.index
     no_churn_idxs = df_no_churn.index
     churn_means = df_numeric[bin_cols].loc[churn_idxs].mean()
     no_churn_means = df_numeric[bin_cols].loc[no_churn_idxs].mean()
-    churn_means = churn_means.round(3)
-    no_churn_means = no_churn_means.round(3)
+
+    # Trace stuff
+    col_names = churn_means.index
+
+    hovertext = []
+    for i, col in enumerate(col_names):
+        churn_mean = round(churn_means[i] * 100, 2)
+        no_churn_mean = round(no_churn_means[i] * 100, 2)
+        # Make text in hover box
+        text = col + '<br>'
+        text += 'Churn:    ' + str(churn_mean) + '%<br>'
+        text += 'No Churn: ' + str(no_churn_mean) + '%<br>'
+        hovertext.append(text)
 
     data = [
         go.Scatterpolar(
+            name='Churn',
             r=churn_means,
-            theta=churn_means.index,
+            theta=col_names,
             marker=dict(size=5, color='red'),
             mode='markers+lines',
-            fill='toself'
+            fill='toself',
+            hoverinfo='text',
+            hovertext=hovertext,
         ),
         go.Scatterpolar(
+            name='No Churn',
             r=no_churn_means,
-            theta=no_churn_means.index,
+            theta=col_names,
             marker=dict(size=5, color='blue'),
             mode='markers+lines',
-            fill='toself'
+            fill='toself',
+            hoverinfo='text',
+            hovertext=hovertext,
         )
     ]
 
@@ -122,12 +140,13 @@ app.layout = html.Div([
         className='markdown-div',
     ),
 
-    # Polar, Pie, and Bars
+    # Polar, Description, Pie, and Bars
     html.Div([
         # Polar
         dcc.Graph(
             id='categorical-polar',
             figure=churn_polar(),
+            hoverData=dict(points=[{'theta': 'TechSupport'}]),
             config={'displayModeBar': False},
             style=dict(
                 width='60%',
@@ -136,12 +155,25 @@ app.layout = html.Div([
                 height=700
             )
         ),
+        html.Div(
+            dcc.Markdown(
+                id='categorical-description',
+                className='markdown-text-marginless',
+            ),
+            className='markdown-div-padless',
+            style=dict(
+                width='40%',
+                height=100,
+                float='left',
+                display='inline-block',
+            ),
+        ),
         # Pie
         dcc.Graph(
             id='categorical-pie',
             style=dict(
                 width='40%',
-                height=400,
+                height=300,
                 float='left',
                 display='inline-block',
             ),
@@ -165,16 +197,15 @@ app.layout = html.Div([
         backgroundColor='white'
     )),
     # Old Dropdown DCC for feature selection, replaced with hover selection
-    html.Div(dcc.Dropdown(
+    html.Div([dcc.Dropdown(
         id='categorical-dropdown',
         options=[{'label': col_label_dict[i], 'value': i} for i in
                 categorical_cols],
         value='TechSupport',
-    ), style=dict(
+    )], style=dict(
         width='100%',
-        # float='left',
         display='inline-block',
-        # height=500
+        height=500
     )),
 
     ### Continuous variables
@@ -299,15 +330,43 @@ app.layout = html.Div([
     )),
 ], style=dict(width='80%', margin='auto', backgroundColor='white'))
 
-# @app.callback(Output('categorical-description', 'children'),
-#               [Input('categorical-')])
+def check_polar_hoverData(hoverData):
+    '''
+    Parses the hoverData dictionary and returns the pandas column related to
+    the user's hovered column
+    '''
+    points_dict = hoverData['points'][0]
+    if 'theta' in points_dict:
+        hover_col = hoverData['points'][0]['theta']
+        is_cat = hover_col in categorical_cols
+        if hover_col.split('_')[0] == 'Payment':
+            hover_col = 'PaymentMethod'
+        elif hover_col.split('_')[0] == 'Contract':
+            hover_col = 'Contract'
+        return hover_col
 
-@app.callback(Output('categorical-bar', 'figure'),
-              [Input('categorical-dropdown', 'value')])
-def display_bar(col):
+@app.callback(
+    Output('categorical-description', 'children'),
+    [Input('categorical-polar', 'hoverData')])
+def feature_description(hoverData):
+    '''
+    Returns the feature description of whatever column is hovered on in the
+    polar plot
+    '''
+    col_idx = {col: i for i, col in enumerate(categorical_cols)}
+
+    hover_col = check_polar_hoverData(hoverData)
+    if hover_col:
+        return descriptions.split('.\n')[col_idx[hover_col]]
+
+@app.callback(
+    Output('categorical-bar', 'figure'),
+    [Input('categorical-polar', 'hoverData')])
+def display_bar(hoverData):
     '''
     Makes the figure for the bar plot in the EDA
     '''
+    col = check_polar_hoverData(hoverData)
     churn_series = df_churn[col].value_counts().sort_index()
     no_churn_series = df_no_churn[col].value_counts().sort_index()
 
@@ -333,15 +392,18 @@ def display_bar(col):
         )
     ))
 
-    layout = go.Layout(margin=dict(t=0))
+    layout = go.Layout(margin=dict(t=5))
     return {'data': data, 'layout': layout}
 
-@app.callback(Output('categorical-pie', 'figure'),
-              [Input('categorical-dropdown', 'value')])
-def display_pie(col):
+@app.callback(
+    Output('categorical-pie', 'figure'),
+    [Input('categorical-polar', 'hoverData')])
+def display_pie(hoverData):
     '''
     Makes the figure for the pie plot in the EDA
     '''
+    col = check_polar_hoverData(hoverData)
+
     n_churn = len(df_churn)
     n_no_churn = len(df_no_churn)
     churn_series = df_churn[col].value_counts().sort_index() / n_churn
@@ -368,7 +430,7 @@ def display_pie(col):
             colors=blues,
         ),
         sort=False,
-        showlegend=False
+        legendgroup='group'
     ),
     # data, churn pie
     go.Pie(
@@ -376,6 +438,8 @@ def display_pie(col):
         values=churn_series.values,
         domain={'x': [0.2, 0.8], 'y': [0.2, 0.8]},
         opacity=0.9,
+        textposition='inside',
+        insidetextfont = dict(color='black'),
         marker=dict(
             line={'color': 'white', 'width': 2},
             colors=reds,
@@ -385,8 +449,9 @@ def display_pie(col):
     )]
 
     layout = go.Layout(
-        title=f'{col_label_dict[col]} by Percentage',
-        margin=dict(b=0, l=0, r=0),
+        # title=f'{col_label_dict[col]} by Percentage',
+        margin=dict(t=30, b=0, r=0, l=0),
+        legend=dict(x=0, y=1.2, bgcolor='rgba(0,0,0,0)', orientation='h'),
         # legend=dict(
         #     y=0.5,
         #     traceorder='reversed',
@@ -482,8 +547,7 @@ def continuous_var_plotter(feature, chart, view):
     [Input('charge-radio-feature', 'value'),
     Input('charge-radio-bars', 'value'),
     Input('charge-check-difference', 'values'),
-    Input('charge-check-stdev', 'values')
-    ])
+    Input('charge-check-stdev', 'values')])
 def charge_over_tenure(feature, bars, difference, show_stdev):
     '''
     Returns either the Monthly Charges or Totals Charges over Tenure as a
