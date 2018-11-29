@@ -75,7 +75,6 @@ def churn_polar():
     ]
 
     layout = go.Layout(
-        height=800,
         polar=dict(
             domain=dict(
                 x=[0, 1],
@@ -122,58 +121,65 @@ app.layout = html.Div([
         dcc.Markdown(eda, className='markdown-text'),
         className='markdown-div',
     ),
-    # Bar Plot
-    dcc.Graph(
-        id='categorical-bar',
-        style=dict(
-            width='50%',
-            float='left',
-            display='inline-block',
-            height=500
-        ),
-        config={'displayModeBar': False}),
-    # Dropdown and Pie Chart
+
+    # Polar, Pie, and Bars
     html.Div([
-        html.Div(dcc.Dropdown(
-            id='categorical-dropdown',
-            options=[{'label': col_label_dict[i], 'value': i} for i in
-                    categorical_cols],
-            value='TechSupport',
-        ), style={'width': '80%', 'margin': 'auto'}),
-        dcc.Graph(id='categorical-pie', config={'displayModeBar': False})
+        # Polar
+        dcc.Graph(
+            id='categorical-polar',
+            figure=churn_polar(),
+            config={'displayModeBar': False},
+            style=dict(
+                width='60%',
+                float='left',
+                display='inline-block',
+                height=700
+            )
+        ),
+        # Pie
+        dcc.Graph(
+            id='categorical-pie',
+            style=dict(
+                width='40%',
+                height=400,
+                float='left',
+                display='inline-block',
+            ),
+            config={'displayModeBar': False}
+        ),
+        # Bar
+        dcc.Graph(
+            id='categorical-bar',
+            style=dict(
+                width='40%',
+                height=300,
+                float='left',
+                display='inline-block',
+            ),
+            config={'displayModeBar': False}
+        )
     ], style=dict(
-        width='50%',
-        float='left',
+        width='100%',
         display='inline-block',
-        height=500,
+        height=700,
         backgroundColor='white'
     )),
-    # Polar
-    dcc.Graph(
-        id='churn-polar',
-        figure=churn_polar(),
-        config={'displayModeBar': False},
-        style=dict(
-            width='100%',
-            float='left',
-            display='inline-block',
-            # height=700
-        )
-    ),
-    # Getting rid of this for now, want to make the full thing a radar
-    # Might bring it back later, dunno! Probably tossing it.
-    # html.Div(
-    #     dcc.Markdown('I might put something here', className='markdown-text'),
-    #     className='markdown-div',
-    #     style=dict(
-    #         width='25%',
-    #         float='left',
-    #         height=540 # This adds to 600 with the padding in the className
-    #     )
-    # ),
-    # Continuous Variables
-    # Distribution
+    # Old Dropdown DCC for feature selection, replaced with hover selection
+    html.Div(dcc.Dropdown(
+        id='categorical-dropdown',
+        options=[{'label': col_label_dict[i], 'value': i} for i in
+                categorical_cols],
+        value='TechSupport',
+    ), style=dict(
+        width='100%',
+        # float='left',
+        display='inline-block',
+        # height=500
+    )),
+
+    ### Continuous variables
     html.Div([
+        # Toggles and radios
         html.Div([
         dcc.RadioItems(
             id='continuous-var',
@@ -212,6 +218,7 @@ app.layout = html.Div([
                 borderLeft='thin rgb(42, 207, 255) solid'
             )
         )], className='dashboard-div'),
+        # Plot
         dcc.Graph(
             id='continuous-plot',
             style=dict(height=400),
@@ -234,7 +241,7 @@ app.layout = html.Div([
             value='Monthly',
             labelStyle=dict(display='inline'),
             style=dict(
-                width='24%',
+                width='29%',
                 textAlign='center',
                 display='inline-block'
             )
@@ -245,7 +252,7 @@ app.layout = html.Div([
             value=5,
             labelStyle=dict(display='inline'),
             style=dict(
-                width='25%',
+                width='30%',
                 textAlign='center',
                 display='inline-block',
                 borderLeft='thin rgb(42, 207, 255) solid'
@@ -257,7 +264,7 @@ app.layout = html.Div([
             values=[],
             labelStyle=dict(display='inline'),
             style=dict(
-                width='25%',
+                width='20%',
                 textAlign='center',
                 display='inline-block',
                 borderLeft='thin rgb(42, 207, 255) solid'
@@ -269,14 +276,16 @@ app.layout = html.Div([
             values=[],
             labelStyle=dict(display='inline'),
             style=dict(
-                width='25%',
+                width='20%',
                 textAlign='center',
                 display='inline-block',
                 borderLeft='thin rgb(42, 207, 255) solid'
             )
         )],
         className='dashboard-div',
-        style=dict(borderLeft='rgb(42, 207, 255) solid')),
+        style=dict(borderLeft='thick rgb(42, 207, 255) solid')
+        ),
+        # Plot
         dcc.Graph(
             id='charge-plot',
             config={'displayModeBar': False}
@@ -288,7 +297,10 @@ app.layout = html.Div([
         height=500,
         backgroundColor='white'
     )),
-], style=dict(width='80%', margin='auto'))
+], style=dict(width='80%', margin='auto', backgroundColor='white'))
+
+# @app.callback(Output('categorical-description', 'children'),
+#               [Input('categorical-')])
 
 @app.callback(Output('categorical-bar', 'figure'),
               [Input('categorical-dropdown', 'value')])
@@ -321,9 +333,7 @@ def display_bar(col):
         )
     ))
 
-    layout = go.Layout(
-        title=f'{col_label_dict[col]} by the Numbers'
-    )
+    layout = go.Layout(margin=dict(t=0))
     return {'data': data, 'layout': layout}
 
 @app.callback(Output('categorical-pie', 'figure'),
@@ -350,6 +360,9 @@ def display_pie(col):
         values=no_churn_series.values,
         domain={'x': [0, 1], 'y': [0, 1]},
         hole=0.65,
+        opacity=0.9,
+        textposition='inside',
+        insidetextfont = dict(color='black'),
         marker=dict(
             line={'color': 'white', 'width': 2},
             colors=blues,
@@ -362,6 +375,7 @@ def display_pie(col):
         labels=churn_series.index,
         values=churn_series.values,
         domain={'x': [0.2, 0.8], 'y': [0.2, 0.8]},
+        opacity=0.9,
         marker=dict(
             line={'color': 'white', 'width': 2},
             colors=reds,
@@ -370,16 +384,16 @@ def display_pie(col):
         showlegend=False
     )]
 
-
     layout = go.Layout(
         title=f'{col_label_dict[col]} by Percentage',
-        legend=dict(
-            y=0.5,
-            traceorder='reversed',
-            font=dict(
-                size=16
-            )
-        )
+        margin=dict(b=0, l=0, r=0),
+        # legend=dict(
+        #     y=0.5,
+        #     traceorder='reversed',
+        #     font=dict(
+        #         size=16
+        #     )
+        # )
     )
     return {'data': data, 'layout': layout}
 
