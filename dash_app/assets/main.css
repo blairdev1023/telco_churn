@@ -29,15 +29,6 @@ body { margin: 0; background-color: rgba(100, 100, 100, 0.4)}
   font-size: 40px;
   padding-left: 40px;
 }
-
-/* Text Section */
-.text-block {
-  width: 70%;
-  margin: 0;
-  margin-left: auto;
-  margin-right: auto;
-}
-
 /* Markdown */
 .markdown-div {
   background-color: white;
@@ -46,8 +37,20 @@ body { margin: 0; background-color: rgba(100, 100, 100, 0.4)}
   padding-bottom: 30px;
 }
 
+.markdown-div-padless {
+  background-color: white;
+  text-align: center;
+}
+
 .markdown-text {
   width: 70%;
+  background-color: white;
+  text-align: left;
+  display: inline-block;
+}
+
+.markdown-text-marginless {
+  width: 100%;
   background-color: white;
   text-align: left;
   display: inline-block;
