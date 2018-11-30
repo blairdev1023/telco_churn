@@ -35,14 +35,18 @@ col_label_dict = {'gender': 'Gender', 'SeniorCitizen': 'Senior Citizen',
     'StreamingMovies': 'Streaming Movies', 'Contract': 'Contract',
     'PaperlessBilling': 'Paperless Billing', 'PaymentMethod': 'Payment Method'}
 
+hover_col = 'TechSupport'
+
 ################################## Markdowns ###################################
 
 with open('assets/markdown/overview.md', 'r') as f:
     overview = f.read()
-with open('assets/markdown/eda.md', 'r') as f:
-    eda = f.read()
 with open('assets/markdown/descriptions.md', 'r') as f:
     descriptions = f.read()
+with open('assets/markdown/eda.md', 'r') as f:
+    eda = f.read()
+with open('assets/markdown/continuous.md', 'r') as f:
+    continuous = f.read()
 
 ################################# Static Plots #################################
 def churn_polar():
@@ -65,7 +69,7 @@ def churn_polar():
         no_churn_mean = round(no_churn_means[i] * 100, 2)
         # Make text in hover box
         text = col + '<br>'
-        text += 'Churn:    ' + str(churn_mean) + '%<br>'
+        text += 'Churn:     ' + str(churn_mean) + '%<br>'
         text += 'No Churn: ' + str(no_churn_mean) + '%<br>'
         hovertext.append(text)
 
@@ -74,7 +78,7 @@ def churn_polar():
             name='Churn',
             r=churn_means,
             theta=col_names,
-            marker=dict(size=5, color='red'),
+            marker=dict(size=10, color='red'),
             mode='markers+lines',
             fill='toself',
             hoverinfo='text',
@@ -84,7 +88,7 @@ def churn_polar():
             name='No Churn',
             r=no_churn_means,
             theta=col_names,
-            marker=dict(size=5, color='blue'),
+            marker=dict(size=10, color='blue'),
             mode='markers+lines',
             fill='toself',
             hoverinfo='text',
@@ -131,7 +135,7 @@ app.layout = html.Div([
     html.Div(
         className='section-header',
         children=[
-            html.Div('Who Churns? Exploratory Data Analysis',
+            html.Div('Exploratory Data Analysis',
             className='section-header--title')
         ]
     ),
@@ -155,15 +159,17 @@ app.layout = html.Div([
                 height=700
             )
         ),
+        html.Div([
+        # Decsription
         html.Div(
             dcc.Markdown(
                 id='categorical-description',
-                className='markdown-text-marginless',
+                className='markdown-text',
             ),
             className='markdown-div-padless',
             style=dict(
-                width='40%',
-                height=100,
+                width='100%',
+                height=130,
                 float='left',
                 display='inline-block',
             ),
@@ -172,7 +178,7 @@ app.layout = html.Div([
         dcc.Graph(
             id='categorical-pie',
             style=dict(
-                width='40%',
+                width='100%',
                 height=300,
                 float='left',
                 display='inline-block',
@@ -183,29 +189,25 @@ app.layout = html.Div([
         dcc.Graph(
             id='categorical-bar',
             style=dict(
-                width='40%',
-                height=300,
+                width='100%',
+                height=270,
                 float='left',
                 display='inline-block',
             ),
             config={'displayModeBar': False}
         )
+        ], className='div-bordered',
+        style=dict(
+            width='39%',
+            height=700,
+            float='left',
+            display='inline-block',
+        )),
     ], style=dict(
         width='100%',
         display='inline-block',
         height=700,
         backgroundColor='white'
-    )),
-    # Old Dropdown DCC for feature selection, replaced with hover selection
-    html.Div([dcc.Dropdown(
-        id='categorical-dropdown',
-        options=[{'label': col_label_dict[i], 'value': i} for i in
-                categorical_cols],
-        value='TechSupport',
-    )], style=dict(
-        width='100%',
-        display='inline-block',
-        height=500
     )),
 
     ### Continuous variables
@@ -320,7 +322,7 @@ app.layout = html.Div([
         dcc.Graph(
             id='charge-plot',
             config={'displayModeBar': False}
-        )
+        ),
     ], style=dict(
         width='50%',
         float='left',
@@ -328,6 +330,45 @@ app.layout = html.Div([
         height=500,
         backgroundColor='white'
     )),
+    # Continuous Markdown
+    html.Div([
+        html.Div(
+            dcc.Markdown(continuous, className='markdown-text'),
+            className='markdown-div-bordered',
+            style=dict(
+                width='33%',
+                float='left',
+                display='inline-block',
+            ),
+        ),
+        html.Div(dcc.Tabs(id='eda-tabs', value='tab-1', children=[
+            dcc.Tab(label='Tab One', value='tab-1'),
+            dcc.Tab(label='Tab Two', value='tab-2'),
+            dcc.Tab(label='Tab Three', value='tab-3'),
+            dcc.Tab(label='Tab Four', value='tab-4'),
+            dcc.Tab(label='Tab Five', value='tab-5'),
+        ]),
+            style=dict(
+                width='66%',
+                float='left',
+                display='inline-block',
+            )
+        ),
+        html.Div(
+            dcc.Markdown(id='eda-insights', className='markdown-text'),
+            className='markdown-div',
+            style=dict(
+                width='66%',
+                float='left',
+                display='inline-block',
+            )
+        ),
+    ], style=dict(
+        width='100%',
+        height=400,
+        backgroundColor='white',
+        display='inline-block',
+    ))
 ], style=dict(width='80%', margin='auto', backgroundColor='white'))
 
 def check_polar_hoverData(hoverData):
@@ -344,6 +385,8 @@ def check_polar_hoverData(hoverData):
         elif hover_col.split('_')[0] == 'Contract':
             hover_col = 'Contract'
         return hover_col
+    else:
+        return hover_col
 
 @app.callback(
     Output('categorical-description', 'children'),
@@ -354,10 +397,8 @@ def feature_description(hoverData):
     polar plot
     '''
     col_idx = {col: i for i, col in enumerate(categorical_cols)}
-
     hover_col = check_polar_hoverData(hoverData)
-    if hover_col:
-        return descriptions.split('.\n')[col_idx[hover_col]]
+    return descriptions.split('.\n')[col_idx[hover_col]]
 
 @app.callback(
     Output('categorical-bar', 'figure'),
@@ -425,6 +466,8 @@ def display_pie(hoverData):
         opacity=0.9,
         textposition='inside',
         insidetextfont = dict(color='black'),
+        hoverinfo='label+percent',
+        name='No Churn',
         marker=dict(
             line={'color': 'white', 'width': 2},
             colors=blues,
@@ -440,6 +483,8 @@ def display_pie(hoverData):
         opacity=0.9,
         textposition='inside',
         insidetextfont = dict(color='black'),
+        hoverinfo='label+percent',
+        name='Churn',
         marker=dict(
             line={'color': 'white', 'width': 2},
             colors=reds,
@@ -451,14 +496,12 @@ def display_pie(hoverData):
     layout = go.Layout(
         # title=f'{col_label_dict[col]} by Percentage',
         margin=dict(t=30, b=0, r=0, l=0),
-        legend=dict(x=0, y=1.2, bgcolor='rgba(0,0,0,0)', orientation='h'),
-        # legend=dict(
-        #     y=0.5,
-        #     traceorder='reversed',
-        #     font=dict(
-        #         size=16
-        #     )
-        # )
+        legend=dict(
+            x=0, y=1.1,
+            bgcolor='rgba(0,0,0,0)',
+            orientation='h',
+            traceorder='reversed',
+        ),
     )
     return {'data': data, 'layout': layout}
 
@@ -604,7 +647,7 @@ def charge_over_tenure(feature, bars, difference, show_stdev):
         xaxis=dict(title='Months'),
         yaxis=dict(title='Charges ($)', range=[0, y_lim]),
         showlegend=True,
-        legend=dict(x=.8, y=1, bgcolor='rgba(0,0,0,0)')
+        legend=dict(x=.8, y=1.1, bgcolor='rgba(0,0,0,0)')
     )
 
     return {'data': data, 'layout': layout}
@@ -631,6 +674,12 @@ def charge_bar_tracer(means, st_devs, labels, name, color, show_stdev):
             visible=show_stdev
         ),
     )
+
+@app.callback(
+    Output('eda-insights', 'children'),
+    [Input('eda-tabs', 'value')])
+def display_tab(tab):
+    return "Catz are theeee bessstt"
 
 
 if __name__ == '__main__':
