@@ -2,7 +2,6 @@
 body {
   margin: 0;
   background-color: rgba(100, 100, 100, 0.4);
-  font-size: 1.75em
 }
 
 /* App Header */
@@ -55,18 +54,6 @@ body {
   text-align: center;
 }
 
-/* Special Divs */
-.markdown-div-bordered {
-  background-color: white;
-  text-align: center;
-  padding-top: 30px;
-  padding-bottom: 30px;
-  border-top: thin black solid;
-  border-bottom: thin black solid;
-  border-right: thin black solid;
-  border-left: thin black solid;
-}
-
 .markdown-text {
   width: 70%;
   background-color: white;
@@ -74,11 +61,12 @@ body {
   display: inline-block;
 }
 
-.markdown-text-marginless {
-  width: 100%;
+.markdown-text-line {
+  width: 70%;
   background-color: white;
   text-align: left;
   display: inline-block;
+  border-top: thin black solid;
 }
 
 /* Dash Core Components (DCC) */
