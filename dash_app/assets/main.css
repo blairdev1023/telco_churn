@@ -1,5 +1,9 @@
 /* Body */
-body { margin: 0; background-color: rgba(100, 100, 100, 0.4)}
+body {
+  margin: 0;
+  background-color: rgba(100, 100, 100, 0.4);
+  font-size: 1.75em
+}
 
 /* App Header */
 .app-header {
@@ -13,6 +17,14 @@ body { margin: 0; background-color: rgba(100, 100, 100, 0.4)}
 .app-header .app-header--title {
   font-size: 60px;
   padding-left: 60px;
+}
+
+/* Special Divs */
+.div-bordered {
+  border-top: thin black solid;
+  border-bottom: thin black solid;
+  border-right: thin black solid;
+  border-left: thin black solid;
 }
 
 /* Section Header */
@@ -29,6 +41,7 @@ body { margin: 0; background-color: rgba(100, 100, 100, 0.4)}
   font-size: 40px;
   padding-left: 40px;
 }
+
 /* Markdown */
 .markdown-div {
   background-color: white;
@@ -40,6 +53,18 @@ body { margin: 0; background-color: rgba(100, 100, 100, 0.4)}
 .markdown-div-padless {
   background-color: white;
   text-align: center;
+}
+
+/* Special Divs */
+.markdown-div-bordered {
+  background-color: white;
+  text-align: center;
+  padding-top: 30px;
+  padding-bottom: 30px;
+  border-top: thin black solid;
+  border-bottom: thin black solid;
+  border-right: thin black solid;
+  border-left: thin black solid;
 }
 
 .markdown-text {
