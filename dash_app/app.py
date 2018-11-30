@@ -11,14 +11,20 @@ from sklearn.neighbors import KernelDensity
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
+################################################################################
 ################################# Pandas Stuff #################################
+################################################################################
+
 df = pd.read_csv('../data/telco_churn_clean.csv')
 df_churn = df[df['Churn'] == 'Yes']
 df_no_churn = df[df['Churn'] == 'No']
 
 df_numeric = pd.read_csv('../data/telco_churn_numeric.csv')
 
+################################################################################
 ################################ Common Labels #################################
+################################################################################
+
 # columns with less than 5 unique values, all others are non categorical
 categorical_cols = df.nunique()[df.nunique() < 5].index.tolist()
 categorical_cols.remove('Churn')
@@ -37,7 +43,9 @@ col_label_dict = {'gender': 'Gender', 'SeniorCitizen': 'Senior Citizen',
 
 hover_col = 'TechSupport'
 
+################################################################################
 ################################## Markdowns ###################################
+################################################################################
 
 with open('assets/markdown/overview.md', 'r') as f:
     overview = f.read()
@@ -45,14 +53,19 @@ with open('assets/markdown/descriptions.md', 'r') as f:
     descriptions = f.read()
 with open('assets/markdown/eda.md', 'r') as f:
     eda = f.read()
+with open('assets/markdown/categorical.md', 'r') as f:
+    categorical = f.read()
 with open('assets/markdown/continuous.md', 'r') as f:
     continuous = f.read()
+with open('assets/markdown/correlation.md', 'r') as f:
+    correlation = f.read()
 
+################################################################################
 ################################# Static Plots #################################
-def churn_polar():
+################################################################################
+def categorical_polar():
     '''
-    Returns the plotly figure for the churn polar chart. Since this chart is
-    static I don't need to wrap it with a callback
+    Returns the plotly figure for the categorical polar chart.
     '''
     # Seperate churn from non-churn and compute means for features
     churn_idxs = df_churn.index
@@ -111,7 +124,10 @@ def churn_polar():
 
     return {'data': data, 'layout': layout}
 
+################################################################################
 ################################### App Stuff ##################################
+################################################################################
+
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 # In the main website this will need to be imported
@@ -143,13 +159,18 @@ app.layout = html.Div([
         dcc.Markdown(eda, className='markdown-text'),
         className='markdown-div',
     ),
+    # Categorical Intro
+    html.Div(
+        dcc.Markdown(categorical, className='markdown-text-line'),
+        className='markdown-div',
+    ),
 
-    # Polar, Description, Pie, and Bars
+    ### Categoricals
     html.Div([
         # Polar
         dcc.Graph(
             id='categorical-polar',
-            figure=churn_polar(),
+            figure=categorical_polar(),
             hoverData=dict(points=[{'theta': 'TechSupport'}]),
             config={'displayModeBar': False},
             style=dict(
@@ -196,12 +217,13 @@ app.layout = html.Div([
             ),
             config={'displayModeBar': False}
         )
-        ], className='div-bordered',
+        ], className='div',
         style=dict(
             width='39%',
             height=700,
             float='left',
             display='inline-block',
+            border='thin black solid',
         )),
     ], style=dict(
         width='100%',
@@ -211,6 +233,18 @@ app.layout = html.Div([
     )),
 
     ### Continuous variables
+    # Intro
+    html.Div(
+        dcc.Markdown(continuous, className='markdown-text-line'),
+        className='markdown-div',
+        style=dict(
+            width='100%',
+            float='left',
+            display='inline-block',
+            paddingTop=100
+        ),
+    ),
+    # KDE/Histogram
     html.Div([
         # Toggles and radios
         html.Div([
@@ -330,45 +364,75 @@ app.layout = html.Div([
         height=500,
         backgroundColor='white'
     )),
-    # Continuous Markdown
+
+    ### Correlation
+    html.Div([
+    # Intro & Radio
     html.Div([
         html.Div(
-            dcc.Markdown(continuous, className='markdown-text'),
-            className='markdown-div-bordered',
+            dcc.Markdown(correlation, className='markdown-text'),
+            className='markdown-div-padless',
             style=dict(
-                width='33%',
-                float='left',
-                display='inline-block',
-            ),
-        ),
-        html.Div(dcc.Tabs(id='eda-tabs', value='tab-1', children=[
-            dcc.Tab(label='Tab One', value='tab-1'),
-            dcc.Tab(label='Tab Two', value='tab-2'),
-            dcc.Tab(label='Tab Three', value='tab-3'),
-            dcc.Tab(label='Tab Four', value='tab-4'),
-            dcc.Tab(label='Tab Five', value='tab-5'),
-        ]),
-            style=dict(
-                width='66%',
+                width='100%',
+                height=250,
                 float='left',
                 display='inline-block',
             )
         ),
-        html.Div(
-            dcc.Markdown(id='eda-insights', className='markdown-text'),
-            className='markdown-div',
+        dcc.RadioItems(
+            id='correlation-radio',
+            options=[{'label': i, 'value': i} for i in
+                    ['Full Dataset', 'Churn', 'Non-Churn']],
+            value='Full Dataset',
             style=dict(
-                width='66%',
+                width='100%',
+                height=250,
                 float='left',
-                display='inline-block',
+                display='inline-block'
             )
         ),
     ], style=dict(
-        width='100%',
-        height=400,
-        backgroundColor='white',
+        width='33%',
+        height=500,
+        float='left',
         display='inline-block',
-    ))
+    )),
+    # Plot
+    dcc.Graph(
+        id='correlation-heatmap',
+        style=dict(
+            width='66%',
+            height=500,
+            float='left',
+            display='inline-block',
+        )
+    )], style=dict(
+        width='100%',
+        backgroundColor='white',
+        display='inline-block'
+    )),
+
+    ### Insights
+    html.Div(dcc.Tabs(id='eda-tabs', value='tab-1', children=[
+        dcc.Tab(label='Tab One', value='tab-1'),
+        dcc.Tab(label='Tab Two', value='tab-2'),
+        dcc.Tab(label='Tab Three', value='tab-3'),
+        dcc.Tab(label='Tab Four', value='tab-4'),
+        dcc.Tab(label='Tab Five', value='tab-5'),
+    ]), style=dict(
+        width='100%',
+        float='left',
+        display='inline-block',
+    )),
+    html.Div(
+        dcc.Markdown(id='eda-insights', className='markdown-text'),
+        className='markdown-div',
+        style=dict(
+            width='100%',
+            float='left',
+            display='inline-block',
+        )
+    )
 ], style=dict(width='80%', margin='auto', backgroundColor='white'))
 
 def check_polar_hoverData(hoverData):
@@ -674,6 +738,40 @@ def charge_bar_tracer(means, st_devs, labels, name, color, show_stdev):
             visible=show_stdev
         ),
     )
+
+@app.callback(
+    Output('correlation-heatmap', 'figure'),
+    [Input('correlation-radio', 'value')])
+def correlation_heatmap(selection):
+    '''
+    Returns the plotly figure for the correlation heatmap
+    '''
+    if selection == 'Full Dataset':
+        correlation_matrix = df_numeric.corr()
+        title = f'Correlation Matrix of {selection}'
+    elif selection == 'Churn':
+        subset = df_numeric[df['Churn']=='Yes']
+        correlation_matrix = subset.corr()
+        title = f'Correlation Matrix of {selection} Subset'
+    elif selection == 'Non-Churn':
+        subset = df_numeric[df['Churn']=='No']
+        correlation_matrix = subset.corr()
+        title = f'Correlation Matrix of {selection} Subset'
+
+    data = [go.Heatmap(
+        z=np.array(correlation_matrix),
+        x=correlation_matrix.columns,
+        y=correlation_matrix.columns,
+        colorscale='Jet',
+        colorbar=dict(
+            title='Pearson Correlation Coefficient',
+            titleside='right'
+        )
+    )]
+
+    layout = go.Layout(title=title)
+
+    return {'data': data, 'layout': layout}
 
 @app.callback(
     Output('eda-insights', 'children'),
