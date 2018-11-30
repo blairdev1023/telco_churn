@@ -63,6 +63,7 @@ with open('assets/markdown/correlation.md', 'r') as f:
 ################################################################################
 ################################# Static Plots #################################
 ################################################################################
+# Note! These must be ABOVE the app, being regular functions and all
 def categorical_polar():
     '''
     Returns the plotly figure for the categorical polar chart.
@@ -120,6 +121,32 @@ def categorical_polar():
             )
         ),
         showlegend=False
+    )
+
+    return {'data': data, 'layout': layout}
+
+def correlation_heatmap():
+    '''
+    Returns the plotly figure for the correlation heatmap
+    '''
+    correlation_matrix = df_numeric.corr()
+
+    data = [go.Heatmap(
+        z=np.array(correlation_matrix),
+        x=correlation_matrix.columns,
+        y=correlation_matrix.columns,
+        colorscale='Jet',
+        colorbar=dict(
+            title='Pearson Correlation Coefficient',
+            titleside='right'
+        )
+    )]
+
+    layout = go.Layout(
+        title='Correlation Matrix of Full Dataset',
+        margin=dict(l=100, b=100),
+        xaxis=dict(tickangle=30),
+        yaxis=dict(tickangle=45)
     )
 
     return {'data': data, 'layout': layout}
@@ -366,45 +393,40 @@ app.layout = html.Div([
     )),
 
     ### Correlation
-    html.Div([
-    # Intro & Radio
-    html.Div([
-        html.Div(
-            dcc.Markdown(correlation, className='markdown-text'),
-            className='markdown-div-padless',
-            style=dict(
-                width='100%',
-                height=250,
-                float='left',
-                display='inline-block',
-            )
+    # Horizontal line (not the best way to do but it's late and this works)
+    html.Div(
+        dcc.Markdown('', className='markdown-text-line'),
+        className='markdown-div',
+        style=dict(
+            width='100%',
+            float='left',
+            display='inline-block',
+            paddingBottom=100
         ),
-        dcc.RadioItems(
-            id='correlation-radio',
-            options=[{'label': i, 'value': i} for i in
-                    ['Full Dataset', 'Churn', 'Non-Churn']],
-            value='Full Dataset',
-            style=dict(
-                width='100%',
-                height=250,
-                float='left',
-                display='inline-block'
-            )
-        ),
-    ], style=dict(
-        width='33%',
-        height=500,
-        float='left',
-        display='inline-block',
-    )),
+    ),
+    html.Div([
+    # Intro
+    html.Div(
+        dcc.Markdown(correlation, className='markdown-text'),
+        className='markdown-div-padless',
+        style=dict(
+            width='33%',
+            height=600,
+            float='left',
+            display='inline-block',
+        )
+    ),
     # Plot
     dcc.Graph(
         id='correlation-heatmap',
+        figure=correlation_heatmap(),
+        config={'displayModeBar': False},
         style=dict(
             width='66%',
-            height=500,
+            height=600,
             float='left',
             display='inline-block',
+            config={'displayModeBar': False},
         )
     )], style=dict(
         width='100%',
@@ -738,40 +760,6 @@ def charge_bar_tracer(means, st_devs, labels, name, color, show_stdev):
             visible=show_stdev
         ),
     )
-
-@app.callback(
-    Output('correlation-heatmap', 'figure'),
-    [Input('correlation-radio', 'value')])
-def correlation_heatmap(selection):
-    '''
-    Returns the plotly figure for the correlation heatmap
-    '''
-    if selection == 'Full Dataset':
-        correlation_matrix = df_numeric.corr()
-        title = f'Correlation Matrix of {selection}'
-    elif selection == 'Churn':
-        subset = df_numeric[df['Churn']=='Yes']
-        correlation_matrix = subset.corr()
-        title = f'Correlation Matrix of {selection} Subset'
-    elif selection == 'Non-Churn':
-        subset = df_numeric[df['Churn']=='No']
-        correlation_matrix = subset.corr()
-        title = f'Correlation Matrix of {selection} Subset'
-
-    data = [go.Heatmap(
-        z=np.array(correlation_matrix),
-        x=correlation_matrix.columns,
-        y=correlation_matrix.columns,
-        colorscale='Jet',
-        colorbar=dict(
-            title='Pearson Correlation Coefficient',
-            titleside='right'
-        )
-    )]
-
-    layout = go.Layout(title=title)
-
-    return {'data': data, 'layout': layout}
 
 @app.callback(
     Output('eda-insights', 'children'),
