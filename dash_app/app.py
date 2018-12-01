@@ -43,6 +43,8 @@ col_label_dict = {'gender': 'Gender', 'SeniorCitizen': 'Senior Citizen',
 
 hover_col = 'TechSupport'
 
+dt_cols = ['Lower Bound', 'Upper Bound', 'N Churn', 'N Retain', 'Churn %']
+
 ################################################################################
 ################################## Markdowns ###################################
 ################################################################################
@@ -318,20 +320,58 @@ app.layout = html.Div([
             config={'displayModeBar': False}
         ),
         # Aggregator
-        dcc.RangeSlider(
-            id='continuous-aggregator',
-            min=0,
-            max=100,
-            step=1,
-            value=[0, 100],
-            marks={i: '%'+str(i) for i in range(0, 101, 10)},
-            allowCross=False
-        ),
+        html.Div([
+            # Label and Slider
+            html.Div([
+                html.P('Aggregator:',
+                    style=dict(
+                        fontWeight='bold',
+                        width='20%',
+                        marginLeft='10%',
+                        display='inline-block',
+                    )
+                ),
+                dcc.RangeSlider(
+                    id='aggregator-rangeslider',
+                    min=0,
+                    max=100,
+                    step=1,
+                    value=[0, 100],
+                    marks={i: str(i)+'%' for i in range(0, 101, 10)},
+                    className='dcc-single',
+                    allowCross=False
+                ),
+            ], style=dict(
+                width='100%',
+                float='left',
+                display='inline-block',
+                height=60,
+                backgroundColor='white'
+            )),
+            # Info Table
+            html.Div(dash_table.DataTable(
+                id='aggregator-datatable',
+                columns=[{'name': i, 'id': i} for i in dt_cols],
+                data=[{'Lower Bound': 0, 'Upper Bound': 100, 'N Churn': 50, 'N Retain': 150, 'Churn %': '33%'}]
+            ), style=dict(
+                width='80%',
+                marginLeft='10%',
+                marginRight='10%',
+                height=90,
+                display='inline-block')
+            ),
+        ], style=dict(
+            width='100%',
+            float='left',
+            display='inline-block',
+            height=150,
+            backgroundColor='white'
+        ))
     ], style=dict(
         width='50%',
         float='left',
         display='inline-block',
-        height=700,
+        height=650,
         backgroundColor='white'
     )),
     # Charges over Tenure
@@ -397,7 +437,7 @@ app.layout = html.Div([
         width='50%',
         float='left',
         display='inline-block',
-        height=700,
+        height=650,
         backgroundColor='white'
     )),
 
@@ -604,7 +644,7 @@ def display_pie(hoverData):
     [Input('continuous-var', 'value'),
     Input('continuous-chart', 'value'),
     Input('continuous-view', 'values'),
-    Input('continuous-aggregator', 'value')])
+    Input('aggregator-rangeslider', 'value')])
 def continuous_var_plotter(feature, chart, view, agg_range):
     '''
     Returns a plotly figure of either a kde plot or bar plot of the selected
@@ -624,20 +664,9 @@ def continuous_var_plotter(feature, chart, view, agg_range):
     x_churn = df_churn[col]
     x_retain = df_retain[col]
 
-    # Set plot domains
-    x_lower = df[col].min()
-    feature_max = df[col].max()
-    if view:
-        x_upper = feature_max * 1/20
-    else:
-        x_upper = feature_max
-
-    # Aggregator domain
-    plot_domain = x_upper - x_lower
-    lower_frac = (agg_range[0] / 100) * plot_domain
-    upper_frac = (agg_range[1] / 100) * plot_domain
-    agg_lower = x_lower + lower_frac
-    agg_upper = x_lower + upper_frac
+    # Get x domain and x points for aggregator
+    x_pts = continuous_plot_ranges(view, col, agg_range)
+    x_lower, x_upper, agg_lower, agg_upper = x_pts
 
     # Make Trace for both churn and retain
     data = []
@@ -711,6 +740,37 @@ def continuous_var_plotter(feature, chart, view, agg_range):
     )
 
     return {'data': data, 'layout': layout}
+
+# @app.callback(
+#     Output('aggregator-datatable', 'data'),
+#     Input('aggregator-rangeslider', 'value')])
+# def aggregator_table(agg_range):
+#     '''
+#     Returns the dictionary of aggregated data for the DataTable
+#     '''
+
+def continuous_plot_ranges(view, col, agg_range):
+    '''
+    Helper function for both continuous_var_plotter and aggregator_table
+
+    Returns the x points for x axis and the aggregator traces
+    '''
+    # Set plot domains
+    x_lower = df[col].min()
+    feature_max = df[col].max()
+    if view:
+        x_upper = feature_max * 1/20
+    else:
+        x_upper = feature_max
+
+    # Aggregator domain
+    plot_domain = x_upper - x_lower
+    lower_frac = (agg_range[0] / 100) * plot_domain
+    upper_frac = (agg_range[1] / 100) * plot_domain
+    agg_lower = x_lower + lower_frac
+    agg_upper = x_lower + upper_frac
+
+    return x_lower, x_upper, agg_lower, agg_upper
 
 @app.callback(
     Output('charge-plot', 'figure'),
