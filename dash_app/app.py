@@ -17,7 +17,7 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 df = pd.read_csv('../data/telco_churn_clean.csv')
 df_churn = df[df['Churn'] == 'Yes']
-df_no_churn = df[df['Churn'] == 'No']
+df_retain = df[df['Churn'] == 'No']
 
 df_numeric = pd.read_csv('../data/telco_churn_numeric.csv')
 
@@ -68,11 +68,11 @@ def categorical_polar():
     '''
     Returns the plotly figure for the categorical polar chart.
     '''
-    # Seperate churn from non-churn and compute means for features
+    # Seperate churn from retain and compute means for features
     churn_idxs = df_churn.index
-    no_churn_idxs = df_no_churn.index
+    retain_idxs = df_retain.index
     churn_means = df_numeric[bin_cols].loc[churn_idxs].mean()
-    no_churn_means = df_numeric[bin_cols].loc[no_churn_idxs].mean()
+    retain_means = df_numeric[bin_cols].loc[retain_idxs].mean()
 
     # Trace stuff
     col_names = churn_means.index
@@ -80,11 +80,11 @@ def categorical_polar():
     hovertext = []
     for i, col in enumerate(col_names):
         churn_mean = round(churn_means[i] * 100, 2)
-        no_churn_mean = round(no_churn_means[i] * 100, 2)
+        retain_mean = round(retain_means[i] * 100, 2)
         # Make text in hover box
         text = col + '<br>'
-        text += 'Churn:     ' + str(churn_mean) + '%<br>'
-        text += 'No Churn: ' + str(no_churn_mean) + '%<br>'
+        text += 'Churn:  ' + str(churn_mean) + '%<br>'
+        text += 'Retain: ' + str(retain_mean) + '%<br>'
         hovertext.append(text)
 
     data = [
@@ -99,8 +99,8 @@ def categorical_polar():
             hovertext=hovertext,
         ),
         go.Scatterpolar(
-            name='No Churn',
-            r=no_churn_means,
+            name='Retain',
+            r=retain_means,
             theta=col_names,
             marker=dict(size=10, color='blue'),
             mode='markers+lines',
@@ -291,7 +291,7 @@ app.layout = html.Div([
             id='continuous-chart',
             options=[{'label': i, 'value': i} for i in
                     ['KDE', 'Histogram']],
-            value='KDE',
+            value='Histogram',
             labelStyle=dict(display='inline'),
             style=dict(
                 width='30%',
@@ -315,14 +315,23 @@ app.layout = html.Div([
         # Plot
         dcc.Graph(
             id='continuous-plot',
-            style=dict(height=400),
             config={'displayModeBar': False}
+        ),
+        # Aggregator
+        dcc.RangeSlider(
+            id='continuous-aggregator',
+            min=0,
+            max=100,
+            step=1,
+            value=[0, 100],
+            marks={i: '%'+str(i) for i in range(0, 101, 10)},
+            allowCross=False
         ),
     ], style=dict(
         width='50%',
         float='left',
         display='inline-block',
-        height=500,
+        height=700,
         backgroundColor='white'
     )),
     # Charges over Tenure
@@ -388,7 +397,7 @@ app.layout = html.Div([
         width='50%',
         float='left',
         display='inline-block',
-        height=500,
+        height=700,
         backgroundColor='white'
     )),
 
@@ -495,7 +504,7 @@ def display_bar(hoverData):
     '''
     col = check_polar_hoverData(hoverData)
     churn_series = df_churn[col].value_counts().sort_index()
-    no_churn_series = df_no_churn[col].value_counts().sort_index()
+    retain_series = df_retain[col].value_counts().sort_index()
 
     data = []
     data.append(go.Bar(
@@ -509,9 +518,9 @@ def display_bar(hoverData):
         )
     ))
     data.append(go.Bar(
-        x=no_churn_series.index,
-        y=no_churn_series.values,
-        name='No Churn',
+        x=retain_series.index,
+        y=retain_series.values,
+        name='Retain',
         marker=dict(
             color='blue',
             opacity=0.7,
@@ -532,9 +541,9 @@ def display_pie(hoverData):
     col = check_polar_hoverData(hoverData)
 
     n_churn = len(df_churn)
-    n_no_churn = len(df_no_churn)
+    n_retain = len(df_retain)
     churn_series = df_churn[col].value_counts().sort_index() / n_churn
-    no_churn_series = df_no_churn[col].value_counts().sort_index() / n_no_churn
+    retain_series = df_retain[col].value_counts().sort_index() / n_retain
     n_features = len(churn_series.index)
 
     # The whole plus one minus one thing is to skip the ultra-white first color
@@ -542,18 +551,18 @@ def display_pie(hoverData):
     reds = cl.scales[str(n_features+2)]['seq']['Reds'][2:]
     blues = cl.scales[str(n_features+2)]['seq']['Blues'][2:]
 
-    # data, no churn pie
+    # data, retain pie
     data = [
     go.Pie(
-        labels=no_churn_series.index,
-        values=no_churn_series.values,
+        labels=retain_series.index,
+        values=retain_series.values,
         domain={'x': [0, 1], 'y': [0, 1]},
         hole=0.65,
         opacity=0.9,
         textposition='inside',
         insidetextfont = dict(color='black'),
         hoverinfo='label+percent',
-        name='No Churn',
+        name='Retain',
         marker=dict(
             line={'color': 'white', 'width': 2},
             colors=blues,
@@ -580,7 +589,6 @@ def display_pie(hoverData):
     )]
 
     layout = go.Layout(
-        # title=f'{col_label_dict[col]} by Percentage',
         margin=dict(t=30, b=0, r=0, l=0),
         legend=dict(
             x=0, y=1.1,
@@ -595,13 +603,14 @@ def display_pie(hoverData):
     Output('continuous-plot', 'figure'),
     [Input('continuous-var', 'value'),
     Input('continuous-chart', 'value'),
-    Input('continuous-view', 'values')])
-def continuous_var_plotter(feature, chart, view):
+    Input('continuous-view', 'values'),
+    Input('continuous-aggregator', 'value')])
+def continuous_var_plotter(feature, chart, view, agg_range):
     '''
     Returns a plotly figure of either a kde plot or bar plot of the selected
     continuous variable
     '''
-
+    # Set plot details
     if feature.lower() == 'tenure':
         col = 'tenure'
         title = 'Tenure'
@@ -611,26 +620,36 @@ def continuous_var_plotter(feature, chart, view):
         feature += ' Charges'
         xaxis = {'title': 'Charges ($)'}
 
+    # Get feature series
     x_churn = df_churn[col]
-    x_no_churn = df_no_churn[col]
+    x_retain = df_retain[col]
 
     # Set plot domains
+    x_lower = df[col].min()
     feature_max = df[col].max()
     if view:
         x_upper = feature_max * 1/20
     else:
         x_upper = feature_max
 
-    # Make Trace for both churn and non churn
+    # Aggregator domain
+    plot_domain = x_upper - x_lower
+    lower_frac = (agg_range[0] / 100) * plot_domain
+    upper_frac = (agg_range[1] / 100) * plot_domain
+    agg_lower = x_lower + lower_frac
+    agg_upper = x_lower + upper_frac
+
+    # Make Trace for both churn and retain
     data = []
     for i in range(2):
-        x = [x_churn, x_no_churn][i]
+        x = [x_churn, x_retain][i]
         color = ['red', 'blue'][i]
-        name = ['Churn', 'No Churn'][i]
-        kde_frac = len(x)/len(df) # for scaling each normalied kde
+        name = ['Churn', 'Retain'][i]
+        kde_frac = len(x)/len(df) # for scaling each normalized kde
 
         # KDE Trace
         if chart == 'KDE':
+            y_upper = 0.02
             title = feature + ' KDE Plot (Overlaid)'
             X_plot = np.linspace(0, x_upper * 1.2, 1000)
             kde = KernelDensity(kernel='gaussian', bandwidth=5)
@@ -646,11 +665,21 @@ def continuous_var_plotter(feature, chart, view):
                 name=name,
                 line=dict(color=color, width=2)
             ))
-        # Histogram Trace
+        # Histrogram and Aggregator
         elif chart == 'Histogram':
             title = feature + ' Histogram (Stacked)'
             x = x.copy()
             x = x[x <= x_upper]
+
+            # Set y-limit
+            if feature == 'Tenure':
+                y_upper = 700
+            elif (feature == 'Total Charges') and (len(view) > 0):
+                y_upper = 300
+            else:
+                y_upper = 850
+
+            # Histogram Trace
             data.append(go.Histogram(
                 x=x,
                 name=name,
@@ -660,12 +689,24 @@ def continuous_var_plotter(feature, chart, view):
                     line=dict(color='white', width=1)
                 )
             ))
+            # Aggregator Trace
+            for agg_x in [agg_lower, agg_upper]:
+                data.append(go.Scatter(
+                    x=(agg_x, agg_x),
+                    y=(0, y_upper),
+                    hoverinfo='none',
+                    mode='lines',
+                    line=dict(color='black', width=2, dash='dash'),
+                    marker=dict(opacity=0),
+                    showlegend=False,
+                ))
 
     # Layout
     layout = go.Layout(
         title=title,
         xaxis=xaxis,
-        legend=dict(x=.8, y=1, bgcolor='rgba(0,0,0,0)'),
+        yaxis=dict(range=[0,y_upper]),
+        legend=dict(x=.7, y=1, bgcolor='rgba(0,0,0,0)'),
         barmode='stack'
     )
 
@@ -698,30 +739,30 @@ def charge_over_tenure(feature, bars, difference, show_stdev):
 
     # Groubpy using cut
     gb_churn = df_churn.groupby(pd.cut(df_churn['tenure'], bins))
-    gb_no_churn = df_no_churn.groupby(pd.cut(df_no_churn['tenure'], bins))
+    gb_retain = df_retain.groupby(pd.cut(df_retain['tenure'], bins))
     # Means
     means_churn = gb_churn[feature+'Charges'].mean()
-    means_no_churn = gb_no_churn[feature+'Charges'].mean()
+    means_retain = gb_retain[feature+'Charges'].mean()
     # Standard Devs.
     st_devs_churn = gb_churn[feature+'Charges'].std()
-    st_devs_no_churn = gb_no_churn[feature+'Charges'].std()
+    st_devs_retain = gb_retain[feature+'Charges'].std()
 
     if difference:
-        means = means_churn - means_no_churn
+        means = means_churn - means_retain
         # Error Prop. -  squareroot of the sum of the squares
         sqr_churn = np.square(st_devs_churn) / bars
-        sqr_no_churn = np.square(st_devs_no_churn) / bars
-        st_devs = np.sqrt(sqr_churn + sqr_no_churn)
+        sqr_retain = np.square(st_devs_retain) / bars
+        st_devs = np.sqrt(sqr_churn + sqr_retain)
 
         trace = charge_bar_tracer(means, st_devs, labels,
-                'Churn - No Churn', 'khaki', show_stdev)
+                'Churn - Retain', 'khaki', show_stdev)
         data = [trace]
     else:
         trace_churn = trace = charge_bar_tracer(means_churn,
                 st_devs_churn, labels, 'Churn', 'red', show_stdev)
-        trace_no_churn = trace = charge_bar_tracer(means_no_churn,
-                st_devs_no_churn, labels, 'No Churn', 'blue', show_stdev)
-        data = [trace_churn, trace_no_churn]
+        trace_retain = trace = charge_bar_tracer(means_retain,
+                st_devs_retain, labels, 'Retain', 'blue', show_stdev)
+        data = [trace_churn, trace_retain]
 
     if feature == 'Monthly':
         y_lim = 125
