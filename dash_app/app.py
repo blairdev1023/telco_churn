@@ -284,31 +284,18 @@ app.layout = html.Div([
             value='Monthly',
             labelStyle=dict(display='inline'),
             style=dict(
-                width='44%',
+                width='50%',
                 textAlign='center',
                 display='inline-block'
             )
         ),
-        dcc.RadioItems(
-            id='continuous-chart',
-            options=[{'label': i, 'value': i} for i in
-                    ['KDE', 'Histogram']],
-            value='Histogram',
-            labelStyle=dict(display='inline'),
-            style=dict(
-                width='30%',
-                textAlign='center',
-                display='inline-block',
-                borderLeft='thin rgb(42, 207, 255) solid'
-            )
-        ),
         dcc.Checklist(
             id='continuous-view',
-            options=[{'label': '1/20th View', 'value': 1}],
+            options=[{'label': '1/20th View (Use for Total)', 'value': 1}],
             values=[],
             labelStyle=dict(display='inline'),
             style=dict(
-                width='25%',
+                width='49%',
                 textAlign='center',
                 display='inline-block',
                 borderLeft='thin rgb(42, 207, 255) solid'
@@ -352,7 +339,7 @@ app.layout = html.Div([
             html.Div(dash_table.DataTable(
                 id='aggregator-datatable',
                 columns=[{'name': i, 'id': i} for i in dt_cols],
-                data=[{'Lower Bound': 0, 'Upper Bound': 100, 'N Churn': 50, 'N Retain': 150, 'Churn %': '33%'}]
+                # data=[{'Lower Bound': 0, 'Upper Bound': 100, 'N Churn': 50, 'N Retain': 150, 'Churn %': '33%'}]
             ), style=dict(
                 width='80%',
                 marginLeft='10%',
@@ -642,15 +629,15 @@ def display_pie(hoverData):
 @app.callback(
     Output('continuous-plot', 'figure'),
     [Input('continuous-var', 'value'),
-    Input('continuous-chart', 'value'),
     Input('continuous-view', 'values'),
     Input('aggregator-rangeslider', 'value')])
-def continuous_var_plotter(feature, chart, view, agg_range):
+def continuous_var_plotter(feature, view, agg_range):
     '''
     Returns a plotly figure of either a kde plot or bar plot of the selected
     continuous variable
     '''
     # Set plot details
+    title = feature + ' Histogram (Stacked)'
     if feature.lower() == 'tenure':
         col = 'tenure'
         title = 'Tenure'
@@ -671,64 +658,43 @@ def continuous_var_plotter(feature, chart, view, agg_range):
     # Make Trace for both churn and retain
     data = []
     for i in range(2):
-        x = [x_churn, x_retain][i]
+        x = [x_churn, x_retain][i].copy()
         color = ['red', 'blue'][i]
         name = ['Churn', 'Retain'][i]
-        kde_frac = len(x)/len(df) # for scaling each normalized kde
 
-        # KDE Trace
-        if chart == 'KDE':
-            y_upper = 0.02
-            title = feature + ' KDE Plot (Overlaid)'
-            X_plot = np.linspace(0, x_upper * 1.2, 1000)
-            kde = KernelDensity(kernel='gaussian', bandwidth=5)
-            kde = kde.fit(x[:, np.newaxis])
-            log_dens = kde.score_samples(X_plot[:, np.newaxis])
-            kde_pts = np.exp(log_dens)
-            y = kde_pts * kde_frac
-            data.append(go.Scatter(
-                x=X_plot,
-                y=y,
-                mode='lines',
-                fill='tozeroy',
-                name=name,
-                line=dict(color=color, width=2)
-            ))
+        # For 1/20th view
+        x = x[x <= x_upper]
         # Histrogram and Aggregator
-        elif chart == 'Histogram':
-            title = feature + ' Histogram (Stacked)'
-            x = x.copy()
-            x = x[x <= x_upper]
 
-            # Set y-limit
-            if feature == 'Tenure':
-                y_upper = 700
-            elif (feature == 'Total Charges') and (len(view) > 0):
-                y_upper = 300
-            else:
-                y_upper = 850
+        # Set y-limit
+        if feature == 'Tenure':
+            y_upper = 700
+        elif (feature == 'Total Charges') and (len(view) > 0):
+            y_upper = 300
+        else:
+            y_upper = 850
 
-            # Histogram Trace
-            data.append(go.Histogram(
-                x=x,
-                name=name,
-                marker=dict(
-                    color=color,
-                    opacity=0.7,
-                    line=dict(color='white', width=1)
-                )
-            ))
-            # Aggregator Trace
-            for agg_x in [agg_lower, agg_upper]:
-                data.append(go.Scatter(
-                    x=(agg_x, agg_x),
-                    y=(0, y_upper),
-                    hoverinfo='none',
-                    mode='lines',
-                    line=dict(color='black', width=2, dash='dash'),
-                    marker=dict(opacity=0),
-                    showlegend=False,
-                ))
+        # Histogram Trace
+        data.append(go.Histogram(
+            x=x,
+            name=name,
+            marker=dict(
+                color=color,
+                opacity=0.7,
+                line=dict(color='white', width=1)
+            )
+        ))
+    # Aggregator Trace
+    for agg_x in [agg_lower, agg_upper]:
+        data.append(go.Scatter(
+            x=(agg_x, agg_x),
+            y=(0, y_upper),
+            hoverinfo='none',
+            mode='lines',
+            line=dict(color='black', width=2, dash='dash'),
+            marker=dict(opacity=0),
+            showlegend=False,
+        ))
 
     # Layout
     layout = go.Layout(
@@ -741,13 +707,45 @@ def continuous_var_plotter(feature, chart, view, agg_range):
 
     return {'data': data, 'layout': layout}
 
-# @app.callback(
-#     Output('aggregator-datatable', 'data'),
-#     Input('aggregator-rangeslider', 'value')])
-# def aggregator_table(agg_range):
-#     '''
-#     Returns the dictionary of aggregated data for the DataTable
-#     '''
+@app.callback(
+    Output('aggregator-datatable', 'data'),
+    [Input('continuous-var', 'value'),
+    Input('continuous-view', 'values'),
+    Input('aggregator-rangeslider', 'value')])
+def aggregator_table(feature, view, agg_range):
+    '''
+    Returns the dictionary of aggregated data for the DataTable
+    '''
+    if feature.lower() == 'tenure':
+        col = 'tenure'
+    else:
+        col = feature + 'Charges'
+
+    x_pts = continuous_plot_ranges(view, col, agg_range)
+    x_lower, x_upper, agg_lower, agg_upper = x_pts
+
+    # Get feature
+    x_churn = df_churn[col]
+    x_retain = df_retain[col]
+
+    # Get aggregated domain
+    x_churn = x_churn[x_churn >= agg_lower]
+    x_churn = x_churn[x_churn <= agg_upper]
+    x_retain = x_retain[x_retain >= agg_lower]
+    x_retain = x_retain[x_retain <= agg_upper]
+
+    n_churn = len(x_churn)
+    n_retain = len(x_retain)
+    percent = (n_churn / (n_churn + n_retain)) * 100
+
+    data = {}
+    data['Lower Bound'] = round(agg_lower, 2)
+    data['Upper Bound'] = round(agg_upper, 2)
+    data['N Churn'] = n_churn
+    data['N Retain'] = n_retain
+    data['Churn %'] = round(percent, 2)
+
+    return [data]
 
 def continuous_plot_ranges(view, col, agg_range):
     '''
