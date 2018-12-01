@@ -71,8 +71,9 @@ body {
 
 /* Dash Core Components (DCC) */
 .dcc-single {
-  width: 70%;
-  margin: auto;
+  width: 60%;
+  margin-right: 10%;
+  display: inline-block;
 }
 
 /* DDC Dashboard  */
