@@ -1,3 +1,4 @@
 /data/telco_churn_raw.csv
+/src/catboost_info/
 .DS_Store
 .ipynb_checkpoints
