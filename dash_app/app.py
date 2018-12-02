@@ -284,21 +284,9 @@ app.layout = html.Div([
             value='Monthly',
             labelStyle=dict(display='inline'),
             style=dict(
-                width='50%',
+                width='100%',
                 textAlign='center',
                 display='inline-block'
-            )
-        ),
-        dcc.Checklist(
-            id='continuous-view',
-            options=[{'label': '1/20th View (Use for Total)', 'value': 1}],
-            values=[],
-            labelStyle=dict(display='inline'),
-            style=dict(
-                width='49%',
-                textAlign='center',
-                display='inline-block',
-                borderLeft='thin rgb(42, 207, 255) solid'
             )
         )], className='dashboard-div'),
         # Plot
@@ -320,11 +308,6 @@ app.layout = html.Div([
                 ),
                 dcc.RangeSlider(
                     id='aggregator-rangeslider',
-                    min=0,
-                    max=100,
-                    step=1,
-                    value=[0, 100],
-                    marks={i: str(i)+'%' for i in range(0, 101, 10)},
                     className='dcc-single',
                     allowCross=False
                 ),
@@ -522,6 +505,7 @@ def feature_description(hoverData):
     hover_col = check_polar_hoverData(hoverData)
     return descriptions.split('.\n')[col_idx[hover_col]]
 
+# Bars
 @app.callback(
     Output('categorical-bar', 'figure'),
     [Input('categorical-polar', 'hoverData')])
@@ -558,6 +542,7 @@ def display_bar(hoverData):
     layout = go.Layout(margin=dict(t=5))
     return {'data': data, 'layout': layout}
 
+# Pie
 @app.callback(
     Output('categorical-pie', 'figure'),
     [Input('categorical-polar', 'hoverData')])
@@ -626,12 +611,12 @@ def display_pie(hoverData):
     )
     return {'data': data, 'layout': layout}
 
+# Univariate Plot
 @app.callback(
     Output('continuous-plot', 'figure'),
     [Input('continuous-var', 'value'),
-    Input('continuous-view', 'values'),
     Input('aggregator-rangeslider', 'value')])
-def continuous_var_plotter(feature, view, agg_range):
+def continuous_var_plotter(feature, agg_range):
     '''
     Returns a plotly figure of either a kde plot or bar plot of the selected
     continuous variable
@@ -651,10 +636,6 @@ def continuous_var_plotter(feature, view, agg_range):
     x_churn = df_churn[col]
     x_retain = df_retain[col]
 
-    # Get x domain and x points for aggregator
-    x_pts = continuous_plot_ranges(view, col, agg_range)
-    x_lower, x_upper, agg_lower, agg_upper = x_pts
-
     # Make Trace for both churn and retain
     data = []
     for i in range(2):
@@ -662,15 +643,9 @@ def continuous_var_plotter(feature, view, agg_range):
         color = ['red', 'blue'][i]
         name = ['Churn', 'Retain'][i]
 
-        # For 1/20th view
-        x = x[x <= x_upper]
-        # Histrogram and Aggregator
-
         # Set y-limit
         if feature == 'Tenure':
             y_upper = 700
-        elif (feature == 'Total Charges') and (len(view) > 0):
-            y_upper = 300
         else:
             y_upper = 850
 
@@ -685,7 +660,7 @@ def continuous_var_plotter(feature, view, agg_range):
             )
         ))
     # Aggregator Trace
-    for agg_x in [agg_lower, agg_upper]:
+    for agg_x in agg_range:
         data.append(go.Scatter(
             x=(agg_x, agg_x),
             y=(0, y_upper),
@@ -707,12 +682,12 @@ def continuous_var_plotter(feature, view, agg_range):
 
     return {'data': data, 'layout': layout}
 
+# Aggregator Table
 @app.callback(
     Output('aggregator-datatable', 'data'),
     [Input('continuous-var', 'value'),
-    Input('continuous-view', 'values'),
     Input('aggregator-rangeslider', 'value')])
-def aggregator_table(feature, view, agg_range):
+def aggregator_table(feature, agg_range):
     '''
     Returns the dictionary of aggregated data for the DataTable
     '''
@@ -721,8 +696,8 @@ def aggregator_table(feature, view, agg_range):
     else:
         col = feature + 'Charges'
 
-    x_pts = continuous_plot_ranges(view, col, agg_range)
-    x_lower, x_upper, agg_lower, agg_upper = x_pts
+    agg_lower = agg_range[0]
+    agg_upper = agg_range[1]
 
     # Get feature
     x_churn = df_churn[col]
@@ -747,29 +722,72 @@ def aggregator_table(feature, view, agg_range):
 
     return [data]
 
-def continuous_plot_ranges(view, col, agg_range):
-    '''
-    Helper function for both continuous_var_plotter and aggregator_table
+# Agg Rangeslider Marks
+@app.callback(
+    Output('aggregator-rangeslider', 'marks'),
+    [Input('continuous-var', 'value')])
+def agg_rangeslider_marks(feature):
+    if feature == 'Tenure':
+        print(feature, 'Tenure')
+        return {i: str(i) for i in range(0, 73, 12)}
+    elif feature == 'Monthly':
+        print(feature, 'Monthly')
+        feature_max = int(df[feature+'Charges'].max())
+        return {i: '$' + str(i) for i in range(20, feature_max, 20)}
+    elif feature == 'Total':
+        print(feature, 'Total')
+        feature_max = int(df[feature+'Charges'].max())
+        return {i: '$' + str(i) for i in range(0, feature_max, 1000)}
 
-    Returns the x points for x axis and the aggregator traces
-    '''
-    # Set plot domains
-    x_lower = df[col].min()
-    feature_max = df[col].max()
-    if view:
-        x_upper = feature_max * 1/20
-    else:
-        x_upper = feature_max
+# Agg Rangeslider Min
+@app.callback(
+    Output('aggregator-rangeslider', 'min'),
+    [Input('continuous-var', 'value')])
+def agg_rangeslider_marks(feature):
+    if feature == 'Tenure':
+        return 0
+    elif feature == 'Monthly':
+        return 18
+    elif feature == 'Total':
+        return 0
 
-    # Aggregator domain
-    plot_domain = x_upper - x_lower
-    lower_frac = (agg_range[0] / 100) * plot_domain
-    upper_frac = (agg_range[1] / 100) * plot_domain
-    agg_lower = x_lower + lower_frac
-    agg_upper = x_lower + upper_frac
+# Agg Rangeslider Max
+@app.callback(
+    Output('aggregator-rangeslider', 'max'),
+    [Input('continuous-var', 'value')])
+def agg_rangeslider_marks(feature):
+    if feature == 'Tenure':
+        return 72
+    elif feature == 'Monthly':
+        return round(df[feature+'Charges'].max())
+    elif feature == 'Total':
+        return round(df[feature+'Charges'].max())
 
-    return x_lower, x_upper, agg_lower, agg_upper
+# Agg Rangeslider Step
+@app.callback(
+    Output('aggregator-rangeslider', 'step'),
+    [Input('continuous-var', 'value')])
+def agg_rangeslider_marks(feature):
+    if feature == 'Tenure':
+        return 1
+    elif feature == 'Monthly':
+        return 1
+    elif feature == 'Total':
+        return 100
 
+# Agg Rangeslider Value
+@app.callback(
+    Output('aggregator-rangeslider', 'value'),
+    [Input('continuous-var', 'value')])
+def agg_rangeslider_marks(feature):
+    if feature == 'Tenure':
+        return [0, 72]
+    elif feature == 'Monthly':
+        return [18, round(df[feature+'Charges'].max())]
+    elif feature == 'Total':
+        return [0, round(df[feature+'Charges'].max())]
+
+### Charge over Tenure
 @app.callback(
     Output('charge-plot', 'figure'),
     [Input('charge-radio-feature', 'value'),
@@ -795,31 +813,28 @@ def charge_over_tenure(feature, bars, difference, show_stdev):
     else:
         show_stdev = False
 
-    # Groubpy using cut
-    gb_churn = df_churn.groupby(pd.cut(df_churn['tenure'], bins))
-    gb_retain = df_retain.groupby(pd.cut(df_retain['tenure'], bins))
     # Means
-    means_churn = gb_churn[feature+'Charges'].mean()
-    means_retain = gb_retain[feature+'Charges'].mean()
+    means_churn = charge_binner(df_churn, feature, bins, 'mean')
+    means_retain = charge_binner(df_retain, feature, bins, 'mean')
     # Standard Devs.
-    st_devs_churn = gb_churn[feature+'Charges'].std()
-    st_devs_retain = gb_retain[feature+'Charges'].std()
+    stdevs_churn = charge_binner(df_churn, feature, bins, 'stdev')
+    stdevs_retain = charge_binner(df_retain, feature, bins, 'stdev')
 
     if difference:
         means = means_churn - means_retain
         # Error Prop. -  squareroot of the sum of the squares
-        sqr_churn = np.square(st_devs_churn) / bars
-        sqr_retain = np.square(st_devs_retain) / bars
-        st_devs = np.sqrt(sqr_churn + sqr_retain)
+        sqr_churn = np.square(stdevs_churn) / bars
+        sqr_retain = np.square(stdevs_retain) / bars
+        stdevs = np.sqrt(sqr_churn + sqr_retain)
 
-        trace = charge_bar_tracer(means, st_devs, labels,
+        trace = charge_bar_tracer(means, stdevs, labels,
                 'Churn - Retain', 'khaki', show_stdev)
         data = [trace]
     else:
         trace_churn = trace = charge_bar_tracer(means_churn,
-                st_devs_churn, labels, 'Churn', 'red', show_stdev)
+                stdevs_churn, labels, 'Churn', 'red', show_stdev)
         trace_retain = trace = charge_bar_tracer(means_retain,
-                st_devs_retain, labels, 'Retain', 'blue', show_stdev)
+                stdevs_retain, labels, 'Retain', 'blue', show_stdev)
         data = [trace_churn, trace_retain]
 
     if feature == 'Monthly':
@@ -837,7 +852,21 @@ def charge_over_tenure(feature, bars, difference, show_stdev):
 
     return {'data': data, 'layout': layout}
 
-def charge_bar_tracer(means, st_devs, labels, name, color, show_stdev):
+def charge_binner(df, feature, bins, mode):
+    '''
+    Helper function for charge_over_feature and aggregator_table
+
+    Aggregates the pandas "df" across the "feature" into n "bins" (using
+    'tenure' as the feature to bin into). Mode can be 'mean' or 'stdev'
+    '''
+    # Groubpy using cut
+    gb = df.groupby(pd.cut(df['tenure'], bins))
+    if mode == 'mean':
+        return gb[feature+'Charges'].mean()
+    elif mode == 'stdev':
+        return gb[feature+'Charges'].std()
+
+def charge_bar_tracer(means, stdevs, labels, name, color, show_stdev):
     '''
     Helper function for charge_over_tenure
 
@@ -855,7 +884,7 @@ def charge_bar_tracer(means, st_devs, labels, name, color, show_stdev):
         ),
         error_y=dict(
             type='data',
-            array=st_devs.round(2).values,
+            array=stdevs.round(2).values,
             visible=show_stdev
         ),
     )
@@ -865,7 +894,6 @@ def charge_bar_tracer(means, st_devs, labels, name, color, show_stdev):
     [Input('eda-tabs', 'value')])
 def display_tab(tab):
     return "Catz are theeee bessstt"
-
 
 if __name__ == '__main__':
     app.run_server(debug=True)
