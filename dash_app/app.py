@@ -486,6 +486,83 @@ app.layout = html.Div([
         dcc.Markdown(modeling, className='markdown-text'),
         className='markdown-div',
     ),
+    # Bars, ROC, & Threshold
+    html.Div([
+        # ROC Curve
+        dcc.Graph(
+            id='modeling-roc-curve',
+            style=dict(
+                width='33%',
+                height='100%',
+                float='left',
+                display='inline-block',
+            ),
+        ),
+        # Model AUC Bar Plot
+        dcc.Graph(
+            id='modeling-AUC-bars',
+            style=dict(
+                width='33%',
+                height='100%',
+                float='left',
+                display='inline-block',
+            ),
+        ),
+        # Discrimination Threshold Plot
+        html.Div(children=html.Img(
+            src='assets/muh_cat.jpg',
+            style=dict(width=300, height=300)
+        ),style=dict(
+            width='33%',
+                height='100%',
+            textAlign='center',
+            float='left',
+            display='inline-block',
+        ))
+    ], style=dict(
+        width='100%',
+        height=350,
+        backgroundColor='white',
+        display='inline-block'
+    )),
+    # Confusion, Stats, Extra
+    html.Div([
+        # Special Model Plot
+        dcc.Graph(
+            id='modeling-special-plot',
+            style=dict(
+                width='33%',
+                height='100%',
+                float='left',
+                display='inline-block',
+            ),
+        ),
+        # Confusion Heatmap
+        dcc.Graph(
+            id='modeling-heatmp',
+            style=dict(
+                width='33%',
+                height='100%',
+                float='left',
+                display='inline-block',
+            ),
+        ),
+        # Model Stats
+        html.Div(
+            style=dict(
+                width='33%',
+                height='100%',
+                float='left',
+                display='inline-block',
+            ),
+        )
+    ], style=dict(
+        width='100%',
+        height=350,
+        backgroundColor='white',
+        display='inline-block'
+    )),
+
 ], style=dict(width='80%', margin='auto', backgroundColor='white'))
 
 def check_polar_hoverData(hoverData):
