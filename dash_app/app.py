@@ -49,6 +49,7 @@ dt_cols = ['Lower Bound', 'Upper Bound', 'N Churn', 'N Retain', 'Churn %']
 ################################## Markdowns ###################################
 ################################################################################
 
+# Blair, FFS, make this a function or something...
 with open('assets/markdown/overview.md', 'r') as f:
     overview = f.read()
 with open('assets/markdown/descriptions.md', 'r') as f:
@@ -61,6 +62,8 @@ with open('assets/markdown/continuous.md', 'r') as f:
     continuous = f.read()
 with open('assets/markdown/correlation.md', 'r') as f:
     correlation = f.read()
+with open('assets/markdown/modeling.md', 'r') as f:
+    modeling = f.read()
 
 ################################################################################
 ################################# Static Plots #################################
@@ -454,12 +457,11 @@ app.layout = html.Div([
     )),
 
     ### Insights
-    html.Div(dcc.Tabs(id='eda-tabs', value='tab-1', children=[
-        dcc.Tab(label='Tab One', value='tab-1'),
-        dcc.Tab(label='Tab Two', value='tab-2'),
-        dcc.Tab(label='Tab Three', value='tab-3'),
-        dcc.Tab(label='Tab Four', value='tab-4'),
-        dcc.Tab(label='Tab Five', value='tab-5'),
+    html.Div(dcc.Tabs(id='eda-tabs', value='0', children=[
+        dcc.Tab(label='Tab One', value='0'),
+        dcc.Tab(label='Tab Two', value='1'),
+        dcc.Tab(label='Tab Three', value='2'),
+        dcc.Tab(label='Tab Four', value='3'),
     ]), style=dict(
         width='100%',
         float='left',
@@ -473,7 +475,17 @@ app.layout = html.Div([
             float='left',
             display='inline-block',
         )
-    )
+    ),
+
+    ### Modeling
+    html.Div(
+        className='section-header',
+        children=[html.Div('Modeling', className='section-header--title')]
+    ),
+    html.Div(
+        dcc.Markdown(modeling, className='markdown-text'),
+        className='markdown-div',
+    ),
 ], style=dict(width='80%', margin='auto', backgroundColor='white'))
 
 def check_polar_hoverData(hoverData):
@@ -728,14 +740,11 @@ def aggregator_table(feature, agg_range):
     [Input('continuous-var', 'value')])
 def agg_rangeslider_marks(feature):
     if feature == 'Tenure':
-        print(feature, 'Tenure')
         return {i: str(i) for i in range(0, 73, 12)}
     elif feature == 'Monthly':
-        print(feature, 'Monthly')
         feature_max = int(df[feature+'Charges'].max())
         return {i: '$' + str(i) for i in range(20, feature_max, 20)}
     elif feature == 'Total':
-        print(feature, 'Total')
         feature_max = int(df[feature+'Charges'].max())
         return {i: '$' + str(i) for i in range(0, feature_max, 1000)}
 
@@ -747,7 +756,7 @@ def agg_rangeslider_marks(feature):
     if feature == 'Tenure':
         return 0
     elif feature == 'Monthly':
-        return 18
+        return 17
     elif feature == 'Total':
         return 0
 
@@ -757,11 +766,11 @@ def agg_rangeslider_marks(feature):
     [Input('continuous-var', 'value')])
 def agg_rangeslider_marks(feature):
     if feature == 'Tenure':
-        return 72
+        return 73
     elif feature == 'Monthly':
-        return round(df[feature+'Charges'].max())
+        return round(df[feature+'Charges'].max()) + 1
     elif feature == 'Total':
-        return round(df[feature+'Charges'].max())
+        return round(df[feature+'Charges'].max()) + 1
 
 # Agg Rangeslider Step
 @app.callback(
@@ -893,7 +902,7 @@ def charge_bar_tracer(means, stdevs, labels, name, color, show_stdev):
     Output('eda-insights', 'children'),
     [Input('eda-tabs', 'value')])
 def display_tab(tab):
-    return "Catz are theeee bessstt"
+    return 'Catz are theeee bessstt'.split()[int(tab)]
 
 if __name__ == '__main__':
     app.run_server(debug=True)
